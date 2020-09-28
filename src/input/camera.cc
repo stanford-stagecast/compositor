@@ -225,3 +225,45 @@ optional<RasterHandle> Camera::get_next_frame()
 
   return RasterHandle { move( raster_handle ) };
 }
+
+optional<RGBRasterHandle> Camera::get_next_rgb_frame()
+{
+  RGBRasterHandle raster_handle { width_, height_ };
+  auto& raster = raster_handle.get();
+
+  v4l2_buffer buffer_info;
+  buffer_info.type = capture_type;
+  buffer_info.memory = V4L2_MEMORY_MMAP;
+  buffer_info.index = next_buffer_index;
+
+  SystemCall( "dequeue buffer",
+              ioctl( camera_fd_.fd_num(), VIDIOC_DQBUF, &buffer_info ) );
+
+  const MMap_Region* const mmap_region_
+    = &kernel_v4l2_buffers_.at( next_buffer_index );
+
+  switch ( pixel_format_ ) {
+    // TODO: Removed other pixel formats for debugging purposes. They may need
+    // to be added back.
+    case V4L2_PIX_FMT_MJPEG: {
+      if ( jpegdec_.has_value() ) {
+        jpegdec_->begin_decoding(
+          { mmap_region_->addr(), buffer_info.bytesused } );
+        if ( jpegdec_->width() != width_ or jpegdec_->height() != height_ ) {
+          throw runtime_error( "size mismatch" );
+        }
+        jpegdec_->decode( raster );
+      } else {
+        jpegdec_.emplace();
+        /* ignore first frame as can contain invalid JPEG data */
+      }
+    } break;
+  }
+
+  SystemCall( "enqueue buffer",
+              ioctl( camera_fd_.fd_num(), VIDIOC_QBUF, &buffer_info ) );
+
+  next_buffer_index = ( next_buffer_index + 1 ) % NUM_BUFFERS;
+
+  return RGBRasterHandle { move( raster_handle ) };
+}

@@ -47,6 +47,7 @@ class JPEGDecompresser
 
   std::optional<TwoD<uint8_t>> Y_ {}, U_ {}, V_ {};
   std::vector<uint8_t*> Y_rows {}, U_rows {}, V_rows {};
+  bool toRGB_ { false };
 
 public:
   JPEGDecompresser();
@@ -55,6 +56,8 @@ public:
   void begin_decoding( const Chunk& chunk );
 
   void decode( BaseRaster& r );
+
+  void set_output_rgb() { toRGB_ = true; }
 
   unsigned int width() const;
   unsigned int height() const;

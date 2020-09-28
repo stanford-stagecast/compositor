@@ -72,6 +72,7 @@ public:
   ~Camera();
 
   std::optional<RasterHandle> get_next_frame() override;
+  std::optional<RGBRasterHandle> get_next_rgb_frame();
 
   uint16_t display_width() { return width_; }
   uint16_t display_height() { return height_; }

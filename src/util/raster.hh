@@ -54,15 +54,19 @@ class BaseRaster
 protected:
   uint16_t display_width_, display_height_;
   uint16_t width_, height_;
+  uint8_t width_ratio_, height_ratio_;
 
-  TwoD<uint8_t> Y_ { width_, height_ }, U_ { width_ / 2, height_ / 2 },
-    V_ { width_ / 2, height_ / 2 };
+  TwoD<uint8_t> Y_ { width_, height_ },
+    U_ { width_ / width_ratio_, height_ / height_ratio_ },
+    V_ { width_ / width_ratio_, height_ / height_ratio_ };
 
 public:
   BaseRaster( const uint16_t display_width,
               const uint16_t display_height,
               const uint16_t width,
-              const uint16_t height );
+              const uint16_t height,
+              const uint8_t width_ratio = 2,
+              const uint8_t height_ratio = 2 );
 
   TwoD<uint8_t>& Y( void ) { return Y_; }
   TwoD<uint8_t>& U( void ) { return U_; }
@@ -87,6 +91,17 @@ public:
 
   std::vector<Chunk> display_rectangle_as_planar() const;
   void dump( FILE* file ) const; /* only used for debugging */
+};
+
+class RGBRaster : public BaseRaster
+{
+public:
+  RGBRaster( const uint16_t display_width,
+             const uint16_t display_height,
+             const uint16_t width,
+             const uint16_t height,
+             const uint8_t width_ratio = 2,
+             const uint8_t height_ratio = 1 );
 };
 
 #endif /* RASTER_HH */

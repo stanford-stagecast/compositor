@@ -71,6 +71,12 @@ void JPEGDecompresser::begin_decoding( const Chunk& chunk )
     throw runtime_error( "not Y'CbCr" );
   }
 
+  if ( toRGB_ ) {
+    decompresser_.out_color_space = JCS_RGB;
+  } else {
+    decompresser_.out_color_space = JCS_YCbCr;
+  }
+
   if ( decompresser_.num_components != 3 ) {
     throw runtime_error( "not 3 components" );
   }
@@ -137,11 +143,15 @@ void JPEGDecompresser::decode( BaseRaster& r )
   jpeg_finish_decompress( &decompresser_ );
 
   memcpy( &r.Y().at( 0, 0 ), &Y_->at( 0, 0 ), width() * height() );
-
-  for ( size_t row = 0; row < height() / 2; row++ ) {
-    for ( size_t column = 0; column < width() / 2; column++ ) {
-      r.U().at( column, row ) = U_->at( column, row * 2 );
-      r.V().at( column, row ) = V_->at( column, row * 2 );
+  if ( toRGB_ ) {
+    memcpy( &r.U().at( 0, 0 ), &U_->at( 0, 0 ), width() * height() );
+    memcpy( &r.V().at( 0, 0 ), &V_->at( 0, 0 ), width() * height() );
+  } else {
+    for ( size_t row = 0; row < height() / 2; row++ ) {
+      for ( size_t column = 0; column < width() / 2; column++ ) {
+        r.U().at( column, row ) = U_->at( column, row * 2 );
+        r.V().at( column, row ) = V_->at( column, row * 2 );
+      }
     }
   }
 }
