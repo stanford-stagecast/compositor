@@ -100,7 +100,7 @@ public:
              const uint16_t display_height,
              const uint16_t width,
              const uint16_t height,
-             const uint8_t width_ratio = 2,
+             const uint8_t width_ratio = 1,
              const uint8_t height_ratio = 1 );
 };
 

@@ -45,9 +45,10 @@ class JPEGDecompresser
 
   static void error( const j_common_ptr cinfo );
 
-  std::optional<TwoD<uint8_t>> Y_ {}, U_ {}, V_ {};
-  std::vector<uint8_t*> Y_rows {}, U_rows {}, V_rows {};
+  std::optional<TwoD<uint8_t>> YUV_ {};
+  std::vector<uint8_t*> YUV_rows {};
   bool toRGB_ { false };
+  uint8_t image_ratio_ { 2 };
 
 public:
   JPEGDecompresser();
@@ -57,7 +58,11 @@ public:
 
   void decode( BaseRaster& r );
 
-  void set_output_rgb() { toRGB_ = true; }
+  void set_output_rgb()
+  {
+    toRGB_ = true;
+    image_ratio_ = 2 - toRGB_;
+  }
 
   unsigned int width() const;
   unsigned int height() const;

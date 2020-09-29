@@ -247,6 +247,7 @@ optional<RGBRasterHandle> Camera::get_next_rgb_frame()
     // to be added back.
     case V4L2_PIX_FMT_MJPEG: {
       if ( jpegdec_.has_value() ) {
+        jpegdec_->set_output_rgb();
         jpegdec_->begin_decoding(
           { mmap_region_->addr(), buffer_info.bytesused } );
         if ( jpegdec_->width() != width_ or jpegdec_->height() != height_ ) {

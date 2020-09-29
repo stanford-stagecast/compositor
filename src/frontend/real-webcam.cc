@@ -94,10 +94,10 @@ int main( int argc, char* argv[] )
   };
 
   RasterHandle r { RasterHandle { 1280, 720 } };
-  VideoDisplay display { r, fullscreen };
+  VideoDisplay display { r, fullscreen, true };
 
   while ( true ) {
-    auto raster = camera.get_next_frame();
+    auto raster = camera.get_next_rgb_frame();
 
     if ( raster.has_value() ) {
       display.draw( *raster );
