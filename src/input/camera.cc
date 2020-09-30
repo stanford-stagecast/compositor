@@ -243,8 +243,64 @@ optional<RGBRasterHandle> Camera::get_next_rgb_frame()
     = &kernel_v4l2_buffers_.at( next_buffer_index );
 
   switch ( pixel_format_ ) {
-    // TODO: Removed other pixel formats for debugging purposes. They may need
-    // to be added back.
+    case V4L2_PIX_FMT_YUYV: {
+      uint8_t* src = mmap_region_->addr();
+      uint8_t* dst_y_start = &raster.Y().at( 0, 0 );
+      uint8_t* dst_cb_start = &raster.U().at( 0, 0 );
+      uint8_t* dst_cr_start = &raster.V().at( 0, 0 );
+
+      const size_t y_plane_lenght = width_ * height_;
+
+      for ( size_t i = 0; i < y_plane_lenght; i++ ) {
+        dst_y_start[i] = src[i << 1];
+      }
+
+      size_t i = 0;
+
+      for ( size_t row = 0; row < height_; row++ ) {
+        if ( row % 2 == 1 ) {
+          continue;
+        }
+
+        for ( size_t column = 0; column < width_ / 2; column++ ) {
+          dst_cb_start[i] = src[row * width_ * 2 + column * 4 + 1];
+          dst_cr_start[i] = src[row * width_ * 2 + column * 4 + 3];
+          i++;
+        }
+      }
+    }
+    yuv_to_rgb( raster );
+    break;
+
+    case V4L2_PIX_FMT_NV12: {
+      memcpy( &raster.Y().at( 0, 0 ), mmap_region_->addr(), width_ * height_ );
+
+      uint8_t* src_chroma_start = mmap_region_->addr() + width_ * height_;
+      uint8_t* dst_cb_start = &raster.U().at( 0, 0 );
+      uint8_t* dst_cr_start = &raster.V().at( 0, 0 );
+
+      size_t chroma_length = width_ * height_ / 4;
+
+      for ( size_t i = 0; i < chroma_length; i++ ) {
+        dst_cb_start[i] = src_chroma_start[2 * i];
+        dst_cr_start[i] = src_chroma_start[2 * i + 1];
+      }
+    }
+    yuv_to_rgb( raster );
+    break;
+
+    case V4L2_PIX_FMT_YUV420: {
+      memcpy( &raster.Y().at( 0, 0 ), mmap_region_->addr(), width_ * height_ );
+      memcpy( &raster.U().at( 0, 0 ),
+              mmap_region_->addr() + width_ * height_,
+              width_ * height_ / 4 );
+      memcpy( &raster.V().at( 0, 0 ),
+              mmap_region_->addr() + width_ * height_ * 5 / 4,
+              width_ * height_ / 4 );
+    }
+    yuv_to_rgb( raster );
+    break;
+
     case V4L2_PIX_FMT_MJPEG: {
       if ( jpegdec_.has_value() ) {
         jpegdec_->set_output_rgb();
@@ -267,4 +323,28 @@ optional<RGBRasterHandle> Camera::get_next_rgb_frame()
   next_buffer_index = ( next_buffer_index + 1 ) % NUM_BUFFERS;
 
   return RGBRasterHandle { move( raster_handle ) };
+}
+
+void Camera::yuv_to_rgb_pixel( uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& b )
+{
+  r = max(0.0, min(255.0, 1.16438356164384 * (y - 16) + 1.59567019581339  * (v - 128)));
+  g = max(0.0, min(255.0, 1.16438356164384 * (y - 16) - 0.391260370716072 * (u - 128) - 0.813004933873461 * (v - 128)));
+  b = max(0.0, min(255.0, 1.16438356164384 * (y - 16) + 2.01741475897078  * (u - 128)));
+}
+
+void Camera::yuv_to_rgb( BaseRaster& raster )
+{
+  // Going backwards to avoid overwriting unprocessed data in YUV
+  for ( int row = height_ - 1; row >= 0; row-- ) {
+    for ( int col = width_ - 1; col >=0; col-- ) {
+      uint8_t y = raster.Y().at( col, row );
+      uint8_t u = raster.U().at( col / 2, row / 4 );
+      uint8_t v = raster.V().at( col / 2, row / 4 );
+      uint8_t r, g, b;
+      yuv_to_rgb_pixel( y, u, v, r, g, b );
+      raster.Y().at( col, row ) = r;
+      raster.U().at( col, row ) = g;
+      raster.V().at( col, row ) = b;
+    }
+  }
 }

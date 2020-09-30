@@ -63,6 +63,14 @@ private:
 
   std::optional<JPEGDecompresser> jpegdec_ {};
 
+  void yuv_to_rgb_pixel( uint8_t y,
+                         uint8_t u,
+                         uint8_t v,
+                         uint8_t& r,
+                         uint8_t& g,
+                         uint8_t& b );
+  void yuv_to_rgb( BaseRaster& raster );
+
 public:
   Camera( const uint16_t width,
           const uint16_t height,

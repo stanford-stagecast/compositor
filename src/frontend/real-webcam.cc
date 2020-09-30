@@ -31,9 +31,11 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include <vector>
 
 #include "display/display.hh"
 #include "input/camera.hh"
+#include "util/chroma_key.hh"
 #include "util/raster_handle.hh"
 
 using namespace std;
@@ -98,6 +100,10 @@ int main( int argc, char* argv[] )
 
   while ( true ) {
     auto raster = camera.get_next_rgb_frame();
+
+    vector<double> key_color = { 0.133293, 0.178868, 0.133967 };
+    ChromaKey chroma { *raster, 0.5, key_color };
+    chroma.create_mask();
 
     if ( raster.has_value() ) {
       display.draw( *raster );

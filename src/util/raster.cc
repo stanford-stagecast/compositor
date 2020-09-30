@@ -115,4 +115,5 @@ RGBRaster::RGBRaster( const uint16_t display_width,
                 width,
                 height,
                 width_ratio,
-                height_ratio ) {}
+                height_ratio )
+{}
