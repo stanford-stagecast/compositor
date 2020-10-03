@@ -58,8 +58,6 @@ protected:
   TwoD<uint8_t> Y_ { width_, height_ }, U_ { width_ / 2, height_ / 2 },
     V_ { width_ / 2, height_ / 2 };
 
-  size_t raw_hash( void ) const;
-
 public:
   BaseRaster( const uint16_t display_width,
               const uint16_t display_height,

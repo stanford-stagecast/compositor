@@ -1,6 +1,5 @@
 cmake_minimum_required ( VERSION 2.8.5 )
 cmake_policy ( SET CMP0054 NEW )
-cmake_policy ( SET CMP0072 NEW )
 project ( StageCast-Compositor )
 
 include ( FindJPEG )
@@ -8,7 +7,7 @@ include ( FindJPEG )
 find_package ( JPEG REQUIRED )
 find_package ( OpenGL REQUIRED )
 find_package ( GLEW REQUIRED )
-find_package ( glfw3 3.3 REQUIRED )
+find_package ( glfw3 REQUIRED )
 
 
 include ( etc/build_defs.cmake )
@@ -33,10 +32,10 @@ add_library ( compositor STATIC
 set ( COMPOSITOR_LIBS
     compositor
     glfw
-    GLEW::GLEW
-    OpenGL::GL
-    OpenGL::GLU
-    JPEG::JPEG
+    GLEW
+    GL
+    GLU
+    jpeg
 )
 
 add_executable ( real-webcam src/frontend/real-webcam.cc )

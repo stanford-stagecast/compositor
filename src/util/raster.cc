@@ -26,7 +26,6 @@
    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#include <boost/functional/hash.hpp>
 #include <cstdio>
 
 #include "exception.hh"
@@ -51,17 +50,6 @@ BaseRaster::BaseRaster( const uint16_t display_width,
   if ( display_height_ > height_ ) {
     throw Invalid( "display_height is greater than height." );
   }
-}
-
-size_t BaseRaster::raw_hash( void ) const
-{
-  size_t hash_val = 0;
-
-  boost::hash_range( hash_val, Y_.begin(), Y_.end() );
-  boost::hash_range( hash_val, U_.begin(), U_.end() );
-  boost::hash_range( hash_val, V_.begin(), V_.end() );
-
-  return hash_val;
 }
 
 bool BaseRaster::operator==( const BaseRaster& other ) const
