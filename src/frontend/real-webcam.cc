@@ -104,11 +104,16 @@ int main( int argc, char* argv[] )
   DilateErodeOperation dilation( 1280, 720, -1 );
 
   while ( true ) {
+    auto start = chrono::high_resolution_clock::now();
     auto raster = camera.get_next_rgb_frame();
 
     chroma.create_mask( *raster );
     dilation.process_image( ( *raster ).get().A() );
     chroma.update_color( *raster );
+
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
+    cout << "Time taken: " << duration.count() << " ms" << endl;
 
     if ( raster.has_value() ) {
       display.draw( *raster );
