@@ -10,7 +10,6 @@
 class ChromaKey
 {
 private:
-  RGBRaster& raster_;
   double screen_balance_;
   std::vector<double> key_color_;
 
@@ -20,10 +19,10 @@ private:
   double process_pixel( const std::vector<double>& pixel_color );
 
 public:
-  ChromaKey( RGBRaster& raster,
-             const double screen_balance,
+  ChromaKey( const double screen_balance,
              const std::vector<double>& key_color );
-  void create_mask( void );
+  void create_mask( RGBRaster& raster );
+  void update_color( RGBRaster& raster );
 };
 
 #endif /* CHROMA_KEY_HH */

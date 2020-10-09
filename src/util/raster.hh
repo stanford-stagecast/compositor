@@ -98,6 +98,7 @@ class RGBRaster : public BaseRaster
 protected:
   // Y_, U_, V_ stores RGB respectivly. A_ is the alpha channel.
   TwoD<uint8_t> A_ { width_, height_ };
+
 public:
   RGBRaster( const uint16_t display_width,
              const uint16_t display_height,

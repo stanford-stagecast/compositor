@@ -6,11 +6,9 @@
 
 using namespace std;
 
-ChromaKey::ChromaKey( RGBRaster& raster,
-                      const double screen_balance,
+ChromaKey::ChromaKey( const double screen_balance,
                       const vector<double>& key_color )
-  : raster_( raster )
-  , screen_balance_( screen_balance )
+  : screen_balance_( screen_balance )
   , key_color_( key_color )
 {}
 
@@ -73,19 +71,28 @@ double ChromaKey::process_pixel( const vector<double>& pixel_color )
   return alpha;
 }
 
-void ChromaKey::create_mask()
+void ChromaKey::create_mask( RGBRaster& raster )
 {
-  for ( int row = 0; row < raster_.height(); row++ ) {
-    for ( int col = 0; col < raster_.width(); col++ ) {
-      double r = raster_.R().at( col, row );
-      double g = raster_.G().at( col, row );
-      double b = raster_.B().at( col, row );
+  for ( int row = 0; row < raster.height(); row++ ) {
+    for ( int col = 0; col < raster.width(); col++ ) {
+      double r = raster.R().at( col, row );
+      double g = raster.G().at( col, row );
+      double b = raster.B().at( col, row );
       vector<double> pixel_color = { r / 255, g / 255, b / 255 };
       double alpha = process_pixel( pixel_color );
-      raster_.A().at( col, row ) = alpha;
-      raster_.R().at( col, row ) = alpha * raster_.R().at( col, row );
-      raster_.G().at( col, row ) = alpha * raster_.G().at( col, row );
-      raster_.B().at( col, row ) = alpha * raster_.B().at( col, row );
+      raster.A().at( col, row ) = alpha * 255;
+    }
+  }
+}
+
+void ChromaKey::update_color( RGBRaster& raster )
+{
+  for ( int row = 0; row < raster.height(); row++ ) {
+    for ( int col = 0; col < raster.width(); col++ ) {
+      const double alpha = raster.A().at( col, row ) / 255;
+      raster.R().at( col, row ) = alpha * raster.R().at( col, row );
+      raster.G().at( col, row ) = alpha * raster.G().at( col, row );
+      raster.B().at( col, row ) = alpha * raster.B().at( col, row );
     }
   }
 }

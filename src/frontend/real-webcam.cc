@@ -36,6 +36,7 @@
 #include "display/display.hh"
 #include "input/camera.hh"
 #include "util/chroma_key.hh"
+#include "util/dilate_erode.hh"
 #include "util/raster_handle.hh"
 
 using namespace std;
@@ -98,12 +99,16 @@ int main( int argc, char* argv[] )
   RasterHandle r { RasterHandle { 1280, 720 } };
   VideoDisplay display { r, fullscreen, true };
 
+  vector<double> key_color = { 0.00819513, 0.106535, 0.026461 };
+  ChromaKey chroma { 0.5, key_color };
+  DilateErodeOperation dilation( 1280, 720, -1 );
+
   while ( true ) {
     auto raster = camera.get_next_rgb_frame();
 
-    vector<double> key_color = { 0.133293, 0.178868, 0.133967 };
-    ChromaKey chroma { *raster, 0.5, key_color };
-    chroma.create_mask();
+    chroma.create_mask( *raster );
+    dilation.process_image( ( *raster ).get().A() );
+    chroma.update_color( *raster );
 
     if ( raster.has_value() ) {
       display.draw( *raster );
