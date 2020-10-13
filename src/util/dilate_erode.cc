@@ -54,10 +54,22 @@ double DilateErodeOperation::process_pixel( int x, int y )
   return value;
 }
 
-void DilateErodeOperation::process_image( TwoD<uint8_t>& mask )
+void DilateErodeOperation::init_operation( TwoD<uint8_t>& mask )
 {
+  if ( distance_ == 0 ) {
+    return;
+  }
   memcpy( &old_mask_.at( 0, 0 ), &mask.at( 0, 0 ), width_ * height_ );
-  for ( uint16_t row = 0; row < old_mask_.height(); row++ ) {
+}
+
+void DilateErodeOperation::process_rows( TwoD<uint8_t>& mask,
+                                         const uint16_t row_start_idx,
+                                         const uint16_t row_end_idx )
+{
+  if ( distance_ == 0 ) {
+    return;
+  }
+  for ( uint16_t row = row_start_idx; row < row_end_idx; row++ ) {
     for ( uint16_t col = 0; col < old_mask_.width(); col++ ) {
       mask.at( col, row ) = process_pixel( col, row );
     }

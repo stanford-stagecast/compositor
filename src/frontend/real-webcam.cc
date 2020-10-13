@@ -36,7 +36,6 @@
 #include "display/display.hh"
 #include "input/camera.hh"
 #include "util/chroma_key.hh"
-#include "util/dilate_erode.hh"
 #include "util/raster_handle.hh"
 
 using namespace std;
@@ -92,24 +91,28 @@ int main( int argc, char* argv[] )
     }
   }
 
+  const uint16_t width = 1280;
+  const uint16_t height = 720;
   Camera camera {
-    1280, 720, PIXEL_FORMAT_STRS.at( pixel_format ), camera_device
+    width, height, PIXEL_FORMAT_STRS.at( pixel_format ), camera_device
   };
 
-  RasterHandle r { RasterHandle { 1280, 720 } };
+  RasterHandle r { RasterHandle { width, height } };
   VideoDisplay display { r, fullscreen, true };
 
+  const uint8_t thread_count = 2;
+  const double distance = 0;
+  const double screen_balance = 0.5;
   vector<double> key_color = { 0.00819513, 0.106535, 0.026461 };
-  ChromaKey chroma { 0.5, key_color };
-  DilateErodeOperation dilation( 1280, 720, -1 );
+  ChromaKey chromakey { thread_count, width,          height,
+                        distance,     screen_balance, key_color };
 
   while ( true ) {
     auto start = chrono::high_resolution_clock::now();
     auto raster = camera.get_next_rgb_frame();
 
-    chroma.create_mask( *raster );
-    dilation.process_image( ( *raster ).get().A() );
-    chroma.update_color( *raster );
+    chromakey.create_mask( *raster );
+    chromakey.update_color( *raster );
 
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );

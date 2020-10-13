@@ -20,7 +20,10 @@ public:
   DilateErodeOperation( const uint16_t width,
                         const uint16_t height,
                         const double distance );
-  void process_image( TwoD<uint8_t>& mask );
+  void init_operation( TwoD<uint8_t>& mask );
+  void process_rows( TwoD<uint8_t>& mask,
+                     const uint16_t row_start_idx,
+                     const uint16_t row_end_idx );
 };
 
 #endif /* DILATE_ERODE_HH */
