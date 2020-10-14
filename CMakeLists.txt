@@ -36,6 +36,7 @@ set ( COMPOSITOR_LIBS
     GL
     GLU
     jpeg
+    pthread
 )
 
 add_executable ( real-webcam src/frontend/real-webcam.cc )
