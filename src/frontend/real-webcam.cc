@@ -108,16 +108,16 @@ int main( int argc, char* argv[] )
                         distance,     screen_balance, key_color };
 
   while ( true ) {
-    auto start = chrono::high_resolution_clock::now();
     auto raster = camera.get_next_rgb_frame();
+    auto start = chrono::high_resolution_clock::now();
 
     chromakey.create_mask( *raster );
-    chromakey.update_color( *raster );
 
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
     cout << "Time taken: " << duration.count() << " ms" << endl;
 
+    chromakey.update_color( *raster );
     if ( raster.has_value() ) {
       display.draw( *raster );
     }
