@@ -13,6 +13,7 @@ private:
   const uint16_t width_;
   const uint16_t height_;
 
+  size_t current_offset { 0 };
   std::optional<JPEGDecompresser> jpegdec_ {};
 
 public:
@@ -23,6 +24,11 @@ public:
     , width_( width )
     , height_( height )
   {}
+
+  std::optional<RasterHandle> get_next_frame() override
+  {
+    throw std::runtime_error( "NOT IMPLEMENTED" );
+  }
 
   std::optional<RGBRasterHandle> get_next_rgb_frame() override;
   uint16_t display_width() { return width_; }
