@@ -41,3 +41,6 @@ set ( COMPOSITOR_LIBS
 
 add_executable ( real-webcam src/frontend/real-webcam.cc )
 target_link_libraries ( real-webcam ${COMPOSITOR_LIBS} )
+
+add_executable ( test-harness src/frontend/test-harness.cc )
+target_link_libraries ( test-harness ${COMPOSITOR_LIBS} )
