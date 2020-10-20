@@ -37,6 +37,7 @@ class FrameInput
 {
 public:
   virtual std::optional<RasterHandle> get_next_frame() = 0;
+  virtual std::optional<RGBRasterHandle> get_next_rgb_frame() = 0;
   virtual uint16_t display_width() = 0;
   virtual uint16_t display_height() = 0;
   virtual ~FrameInput() = default;
