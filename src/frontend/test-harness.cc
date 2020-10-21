@@ -43,14 +43,14 @@ int main( int argc, char* argv[] )
   const uint16_t height = 720;
 
   const double screen_balance = 0.5;
-  vector<double> key_color = { 149.0 / 255, 201.0 / 255, 126.0 / 255 };
+  vector<double> key_color = { 0.00819513, 0.106535, 0.026461 };
 
   MJPEGInput original_mjpeg_input { original_path, width, height };
   MJPEGInput current_mjpeg_input { current_path, width, height };
 
   RasterHandle r { RasterHandle { width, height } };
   VideoDisplay display { r, false, true };
-  ChromaKey chroma_key { 2, width, height, 1, screen_balance, key_color };
+  ChromaKey chroma_key { 4, width, height, 0, screen_balance, key_color };
 
   while ( true ) {
     auto original_raster = original_mjpeg_input.get_next_rgb_frame();
@@ -63,9 +63,11 @@ int main( int argc, char* argv[] )
     chroma_key.create_mask( *original_raster );
     chroma_key.create_mask( *current_raster );
 
-    chroma_key.update_color( *original_raster );
-    display.draw( *original_raster );
-
+    //chroma_key.update_color( *original_raster );
+    //display.draw( *original_raster );
+    chroma_key.update_color( *current_raster );
+    display.draw( *current_raster );
+    
     size_t diff = 0;
 
     // comparing original_raster->get().A() & current_raster->get().A()

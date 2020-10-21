@@ -102,7 +102,7 @@ int main( int argc, char* argv[] )
 
   const uint8_t thread_count = 2;
   const double distance = 0;
-  const double screen_balance = 0.5;
+  const double screen_balance = 0.6;
   vector<double> key_color = { 0.00819513, 0.106535, 0.026461 };
   ChromaKey chromakey { thread_count, width,          height,
                         distance,     screen_balance, key_color };
