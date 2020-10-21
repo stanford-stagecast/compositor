@@ -35,8 +35,8 @@
 
 #include "display/display.hh"
 #include "input/camera.hh"
-#include "input/jpeg.hh"
 #include "util/chroma_key.hh"
+#include "util/compositor.hh"
 #include "util/raster_handle.hh"
 
 using namespace std;
@@ -108,9 +108,8 @@ int main( int argc, char* argv[] )
   ChromaKey chromakey { thread_count, width,          height,
                         distance,     screen_balance, key_color };
 
-  const string image_name = "test_background.jpg";
-  JPEGDecompresser jpegdec;
-  RGBRaster background_raster = jpegdec.load_image( image_name );
+  const string image_name = "../test_background.jpg";
+  Compositor compositor( image_name );
 
   while ( true ) {
     auto raster = camera.get_next_rgb_frame();
@@ -122,10 +121,10 @@ int main( int argc, char* argv[] )
     auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
     cout << "Time taken: " << duration.count() << " ms" << endl;
 
-    chromakey.update_color( *raster );
+    // chromakey.update_color( *raster );
+    compositor.composite( *raster );
     if ( raster.has_value() ) {
-      // display.draw( *raster );
-      display.draw( background_raster );
+      display.draw( *raster );
     }
   }
 
