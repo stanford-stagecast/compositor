@@ -35,6 +35,7 @@
 
 #include "display/display.hh"
 #include "input/camera.hh"
+#include "input/jpeg.hh"
 #include "util/chroma_key.hh"
 #include "util/raster_handle.hh"
 
@@ -107,6 +108,10 @@ int main( int argc, char* argv[] )
   ChromaKey chromakey { thread_count, width,          height,
                         distance,     screen_balance, key_color };
 
+  const string image_name = "test_background.jpg";
+  JPEGDecompresser jpegdec;
+  RGBRaster background_raster = jpegdec.load_image( image_name );
+
   while ( true ) {
     auto raster = camera.get_next_rgb_frame();
     auto start = chrono::high_resolution_clock::now();
@@ -119,7 +124,8 @@ int main( int argc, char* argv[] )
 
     chromakey.update_color( *raster );
     if ( raster.has_value() ) {
-      display.draw( *raster );
+      // display.draw( *raster );
+      display.draw( background_raster );
     }
   }
 
