@@ -32,7 +32,7 @@ double KeyingOperation::get_pixel_saturation( const vector<double>& pixel_color,
   const double val = screen_balance_ * pixel_color[min_channel]
                      + ( 1.0 - screen_balance_ ) * pixel_color[max_channel];
 
-  return ( pixel_color[primary_channel] - val ) * abs( 1.0f - val );
+  return ( pixel_color[primary_channel] - val ) * abs( 1.0 - val );
 }
 
 double KeyingOperation::process_pixel( const vector<double>& pixel_color )
@@ -64,7 +64,7 @@ double KeyingOperation::process_pixel( const vector<double>& pixel_color )
       alpha = 0.0;
     } else {
       // Nice alpha falloff on edges
-      float distance = 1.0 - saturation / screen_saturation;
+      double distance = 1.0 - saturation / screen_saturation;
       alpha = distance;
     }
   }
@@ -80,7 +80,7 @@ void KeyingOperation::process_rows( RGBRaster& raster,
       double r = raster.R().at( col, row );
       double g = raster.G().at( col, row );
       double b = raster.B().at( col, row );
-      vector<double> pixel_color = { r / 255, g / 255, b / 255 };
+      vector<double> pixel_color = { r / 255.0, g / 255.0, b / 255.0 };
       double alpha = process_pixel( pixel_color );
       raster.A().at( col, row ) = alpha * 255;
     }
