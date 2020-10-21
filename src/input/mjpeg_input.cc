@@ -13,7 +13,7 @@ size_t find_jpeg_eof( const Chunk& chunk )
     }
   }
 
-  return size * 2;
+  return SIZE_MAX;
 }
 
 optional<RGBRasterHandle> MJPEGInput::get_next_rgb_frame()
@@ -23,7 +23,12 @@ optional<RGBRasterHandle> MJPEGInput::get_next_rgb_frame()
     return {};
   }
 
-  const size_t frame_length = find_jpeg_eof( chunk( current_offset ) ) + 2;
+  size_t frame_length = find_jpeg_eof( chunk( current_offset ) );
+  if ( frame_length == SIZE_MAX ) {
+    return {};
+  }
+
+  frame_length += 2;
 
   RGBRasterHandle raster_handle { width_, height_ };
   auto& raster = raster_handle.get();
