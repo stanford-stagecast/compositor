@@ -58,6 +58,8 @@ public:
 
   void decode( BaseRaster& r );
 
+  RGBRaster load_image( const std::string& image_name );
+
   void set_output_rgb()
   {
     toRGB_ = true;

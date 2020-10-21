@@ -137,3 +137,35 @@ void JPEGDecompresser::decode( BaseRaster& r )
     }
   }
 }
+
+RGBRaster JPEGDecompresser::load_image( const string& image_name )
+{
+  FILE* file = fopen( image_name.c_str(), "rb" );
+  if ( !file ) {
+    throw runtime_error( "Error reading file: " + image_name );
+  }
+
+  jpeg_stdio_src( &decompresser_, file );
+
+  if ( JPEG_HEADER_OK != jpeg_read_header( &decompresser_, true ) ) {
+    throw runtime_error( "invalid JPEG" );
+  }
+
+  decompresser_.out_color_space = JCS_RGB;
+
+  if ( decompresser_.num_components != 3 ) {
+    throw runtime_error( "not 3 components" );
+  }
+
+  YUV_.emplace( 3 * width(), height() );
+  for ( unsigned int i = 0; i < height(); i++ ) {
+    YUV_rows.emplace_back( &YUV_->at( 0, i ) );
+  }
+
+  set_output_rgb();
+  const uint16_t image_width = static_cast<uint16_t>( width() );
+  const uint16_t image_height = static_cast<uint16_t>( height() );
+  RGBRaster image { image_width, image_height, image_width, image_height };
+  decode( image );
+  return image;
+}
