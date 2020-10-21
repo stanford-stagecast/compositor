@@ -23,7 +23,7 @@ using namespace chrono;
 
 void usage( const char* argv0 )
 {
-  cerr << "Usage: " << argv0 << " FILE WIDTH HEIGHT" << endl;
+  cerr << "Usage: " << argv0 << " FILE-ORIGINAL FILE-CURRENT" << endl;
 }
 
 int main( int argc, char* argv[] )
@@ -32,30 +32,55 @@ int main( int argc, char* argv[] )
     abort();
   }
 
-  if ( argc != 4 ) {
+  if ( argc != 3 ) {
     usage( argv[0] );
     return EXIT_FAILURE;
   }
 
-  const string path { argv[1] };
-  const uint16_t width = stoi( argv[2] );
-  const uint16_t height = stoi( argv[3] );
+  const string original_path { argv[1] };
+  const string current_path { argv[2] };
+  const uint16_t width = 1280;
+  const uint16_t height = 720;
 
-  MJPEGInput mjpeg_input { path, width, height };
+  const double screen_balance = 0.5;
+  vector<double> key_color = { 149.0 / 255, 201.0 / 255, 126.0 / 255 };
+
+  MJPEGInput original_mjpeg_input { original_path, width, height };
+  MJPEGInput current_mjpeg_input { current_path, width, height };
+
   RasterHandle r { RasterHandle { width, height } };
   VideoDisplay display { r, false, true };
+  ChromaKey chroma_key { 2, width, height, 1, screen_balance, key_color };
 
   while ( true ) {
-    auto next_frame = steady_clock::now() + 100ms;
-    auto raster = mjpeg_input.get_next_rgb_frame();
+    auto original_raster = original_mjpeg_input.get_next_rgb_frame();
+    auto current_raster = current_mjpeg_input.get_next_rgb_frame();
 
-    if ( raster.has_value() ) {
-      display.draw( *raster );
-    } else {
+    if ( not original_raster.has_value() or not current_raster.has_value() ) {
       break;
     }
 
-    this_thread::sleep_until( next_frame );
+    chroma_key.create_mask( *original_raster );
+    chroma_key.create_mask( *current_raster );
+
+    chroma_key.update_color( *original_raster );
+    display.draw( *original_raster );
+
+    size_t diff = 0;
+
+    // comparing original_raster->get().A() & current_raster->get().A()
+    for ( size_t i = 0; i < width; i++ ) {
+      for ( size_t j = 0; j < height; j++ ) {
+        const auto a1 = original_raster->get().A().at( i, j );
+        const auto a2 = current_raster->get().A().at( i, j );
+
+        if ( abs( a1 - a2 ) >= 64 ) {
+          diff++;
+        }
+      }
+    }
+
+    cout << ( 1.0 * diff / ( width * height ) ) << endl;
   }
 
   return EXIT_SUCCESS;
