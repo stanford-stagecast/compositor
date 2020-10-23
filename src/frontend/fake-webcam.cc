@@ -37,6 +37,7 @@
 #include "input/mjpeg_input.hh"
 #include "util/chroma_key.hh"
 #include "util/compositor.hh"
+#include "util/h264_encoder.hh"
 #include "util/raster_handle.hh"
 
 using namespace std;
@@ -44,8 +45,7 @@ using namespace chrono;
 
 void usage( const char* argv0 )
 {
-  cerr
-    << "Usage: " << argv0 << " FILE" << endl;
+  cerr << "Usage: " << argv0 << " FILE" << endl;
 }
 
 int main( int argc, char* argv[] )
@@ -60,35 +60,48 @@ int main( int argc, char* argv[] )
   const uint16_t height = 720;
   MJPEGInput frame_input { argv[1], width, height };
   RasterHandle r { RasterHandle { width, height } };
-  VideoDisplay display { r, false, true };
+  VideoDisplay display { r, false, false };
 
-  const uint8_t thread_count = 2;
-  const double distance = 0;
-  const double screen_balance = 0.5;
-  vector<double> key_color = { 131.0 / 255, 204.0 / 255, 160.0 / 255 };
-  ChromaKey chromakey { thread_count, width,          height,
-                        distance,     screen_balance, key_color };
+  // const uint8_t thread_count = 2;
+  // const double distance = 0;
+  // const double screen_balance = 0.5;
+  // vector<double> key_color = { 131.0 / 255, 204.0 / 255, 160.0 / 255 };
+  // ChromaKey chromakey { thread_count, width,          height,
+  //                       distance,     screen_balance, key_color };
 
-  const string image_name = "../test_background.jpg";
-  Compositor compositor( image_name );
+  // const string image_name = "../test_background.jpg";
+  // Compositor compositor( image_name );
+
+  const uint8_t fps = 40;
+  H264Encoder encoder( width, height, fps, "ultrafast", "zerolatency" );
+  const string output_file = "../test_video_output.h264";
+  encoder.create_output_file( output_file );
 
   while ( true ) {
-    auto raster = frame_input.get_next_rgb_frame();
+    auto raster = frame_input.get_next_frame();
+    if ( !raster.has_value() ) {
+      break;
+    }
     auto start = chrono::high_resolution_clock::now();
 
-    chromakey.create_mask( *raster );
+    // chromakey.create_mask( *raster );
+    // chromakey.update_color( *raster );
+    // compositor.composite( *raster );
+
+    encoder.encode( *raster );
+    EncodedData data = encoder.get_encoded_data();
 
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
     cout << "Time taken: " << duration.count() << " ms" << endl;
 
-    // chromakey.update_color( *raster );
-    compositor.composite( *raster );
+    encoder.write_to_file( data );
+
     if ( raster.has_value() ) {
       display.draw( *raster );
     }
 
-    this_thread::sleep_for(40ms);
+    this_thread::sleep_for( 40ms );
   }
 
   return EXIT_SUCCESS;
