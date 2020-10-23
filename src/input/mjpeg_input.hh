@@ -25,11 +25,7 @@ public:
     , height_( height )
   {}
 
-  std::optional<RasterHandle> get_next_frame() override
-  {
-    throw std::runtime_error( "NOT IMPLEMENTED" );
-  }
-
+  std::optional<RasterHandle> get_next_frame() override;
   std::optional<RGBRasterHandle> get_next_rgb_frame() override;
   uint16_t display_width() { return width_; }
   uint16_t display_height() { return height_; }

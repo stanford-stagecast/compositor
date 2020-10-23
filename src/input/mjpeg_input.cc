@@ -16,6 +16,39 @@ size_t find_jpeg_eof( const Chunk& chunk )
   return SIZE_MAX;
 }
 
+optional<RasterHandle> MJPEGInput::get_next_frame()
+{
+  auto chunk = input_file_.chunk();
+  if ( current_offset >= chunk.size() ) {
+    return {};
+  }
+
+  size_t frame_length = find_jpeg_eof( chunk( current_offset ) );
+  if ( frame_length == SIZE_MAX ) {
+    return {};
+  }
+
+  frame_length += 2;
+
+  RasterHandle raster_handle { width_, height_ };
+  auto& raster = raster_handle.get();
+
+  if ( jpegdec_.has_value() ) {
+    jpegdec_->begin_decoding( input_file_( current_offset, frame_length ) );
+    if ( jpegdec_->width() != width_ or jpegdec_->height() != height_ ) {
+      throw runtime_error( "size mismatch" );
+    }
+    jpegdec_->decode( raster );
+  } else {
+    jpegdec_.emplace();
+    /* ignore first frame as can contain invalid JPEG data */
+  }
+
+  current_offset += frame_length;
+
+  return RasterHandle { move( raster_handle ) };
+}
+
 optional<RGBRasterHandle> MJPEGInput::get_next_rgb_frame()
 {
   auto chunk = input_file_.chunk();

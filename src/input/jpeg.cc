@@ -86,11 +86,11 @@ void JPEGDecompresser::begin_decoding( const Chunk& chunk )
             and decompresser_.comp_info[2].h_samp_factor == 1
             and decompresser_.comp_info[2].v_samp_factor == 1 )
        and not( decompresser_.comp_info[0].h_samp_factor == 2
-               and decompresser_.comp_info[0].v_samp_factor == 2
-               and decompresser_.comp_info[1].h_samp_factor == 1
-               and decompresser_.comp_info[1].v_samp_factor == 2
-               and decompresser_.comp_info[2].h_samp_factor == 1
-               and decompresser_.comp_info[2].v_samp_factor == 2 ) ) {
+                and decompresser_.comp_info[0].v_samp_factor == 2
+                and decompresser_.comp_info[1].h_samp_factor == 1
+                and decompresser_.comp_info[1].v_samp_factor == 2
+                and decompresser_.comp_info[2].h_samp_factor == 1
+                and decompresser_.comp_info[2].v_samp_factor == 2 ) ) {
     throw runtime_error( "not 4:2:2" );
   }
 
