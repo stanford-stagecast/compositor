@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo "Enter path to video (without extension): "
+read path
+echo "Enter compression rate: "
+read rate
+echo "Compress times x (enter how many times you want to compress): "
+read xrate
+foo () {
+	    ffmpeg -y -i $path.mjpeg -f h264 -crf $1 video-with-rate$1-$2time.mp4
+	    ffmpeg -y -i video-with-rate-$1-$2time.mp4 -f mjpeg -q:v 2 video-with-rate$1-$2time.mjpeg
+	    rm video-with-rate$1-$2time.mp4
+}
+
+for ((i = 0; i<=xrate; i++))
+do
+    foo "$rate"
+done   
+echo "Done! :=)"
