@@ -1,0 +1,14 @@
+#!/bin/bash
+
+echo "Enterth thee pathth: "
+read path
+foo () {
+	    ffmpeg -i $path.mjpg -f h264 -crf $1 video-with-rate$1.mp4
+	    ffmpeg -i video-with-rate$1.mp4 -f mjpeg -q:v 2 video-with-rate$1.mjpeg
+	    rm video-with-rate$1.mp4
+}
+
+echo "Enter compression rates: "
+read -a rates
+for rate in ${rates[@]}; do foo "$rate"; done
+    echo "Done! :=)"
