@@ -74,6 +74,9 @@ int main( int argc, char* argv[] )
 
   while ( true ) {
     auto raster = frame_input.get_next_rgb_frame();
+    if ( !raster.has_value() ) {
+      break;
+    }
     auto start = chrono::high_resolution_clock::now();
 
     chromakey.create_mask( *raster );
