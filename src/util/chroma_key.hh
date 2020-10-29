@@ -16,11 +16,12 @@ class ChromaKey
 private:
   // For internal operations
   uint16_t width_, height_;
-  double distance_;
-  double screen_balance_;
-  std::vector<double> key_color_;
-  KeyingOperation keying_operation_ { screen_balance_, key_color_ };
-  DilateErodeOperation dilate_erode_operation_ { width_, height_, distance_ };
+
+  double default_distance_ {0};
+  double default_screen_balance_ {0.5};
+  std::vector<double> default_key_color_ {0, 0, 0};
+  KeyingOperation keying_operation_ { default_screen_balance_, default_key_color_ };
+  DilateErodeOperation dilate_erode_operation_ { width_, height_, default_distance_ };
 
   // For threading
   uint8_t thread_count_;
@@ -53,11 +54,11 @@ private:
 public:
   ChromaKey( const uint8_t thread_count,
              const uint16_t width,
-             const uint16_t height,
-             const double distance,
-             const double screen_balance,
-             const std::vector<double>& key_color );
+             const uint16_t height );
   ~ChromaKey();
+  void set_dilate_erode_distance( const double distance ) { dilate_erode_operation_.set_distance( distance ); }
+  void set_key_color( const std::vector<double>& key_color ) { keying_operation_.set_key_color( key_color ); }
+  void set_screen_balance( const double screen_balance ) { keying_operation_.set_screen_balance( screen_balance ); }
   void create_mask( RGBRaster& raster );
   void update_color( RGBRaster& raster );
 };

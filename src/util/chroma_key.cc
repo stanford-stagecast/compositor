@@ -11,15 +11,9 @@ using namespace std;
 
 ChromaKey::ChromaKey( const uint8_t thread_count,
                       const uint16_t width,
-                      const uint16_t height,
-                      const double distance,
-                      const double screen_balance,
-                      const std::vector<double>& key_color )
+                      const uint16_t height )
   : width_( width )
   , height_( height )
-  , distance_( distance )
-  , screen_balance_( screen_balance )
-  , key_color_( key_color )
   , thread_count_( thread_count )
   , threads_( thread_count_ )
   , output_level_( thread_count_, Start )

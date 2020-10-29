@@ -12,8 +12,14 @@ DilateErodeOperation::DilateErodeOperation( const uint16_t width,
                                             const double distance )
   : width_( width )
   , height_( height )
-  , distance_( distance )
 {
+  set_distance( distance );
+}
+
+void DilateErodeOperation::set_distance( const double distance )
+{
+  distance_ = distance;
+  is_dilation_ = distance_ > 0;
   if ( distance_ < 0 ) {
     distance_ = -distance_;
   }

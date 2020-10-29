@@ -21,6 +21,14 @@ private:
 public:
   KeyingOperation( const double screen_balance,
                    const std::vector<double>& key_color );
+  void set_screen_balance( const double screen_balance )
+  {
+    screen_balance_ = screen_balance;
+  }
+  void set_key_color( const std::vector<double>& key_color )
+  {
+    key_color_ = key_color;
+  }
   void process_rows( RGBRaster& raster,
                      const uint16_t row_start_idx,
                      const uint16_t row_end_idx );
