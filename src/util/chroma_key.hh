@@ -17,11 +17,14 @@ private:
   // For internal operations
   uint16_t width_, height_;
 
-  double default_distance_ {0};
-  double default_screen_balance_ {0.5};
-  std::vector<double> default_key_color_ {0, 0, 0};
-  KeyingOperation keying_operation_ { default_screen_balance_, default_key_color_ };
-  DilateErodeOperation dilate_erode_operation_ { width_, height_, default_distance_ };
+  const int default_distance_ { 0 };
+  const double default_screen_balance_ { 0.5 };
+  const std::vector<double> default_key_color_ { 0, 0, 0 };
+  KeyingOperation keying_operation_ { default_screen_balance_,
+                                      default_key_color_ };
+  DilateErodeOperation dilate_erode_operation_ { width_,
+                                                 height_,
+                                                 default_distance_ };
 
   // For threading
   uint8_t thread_count_;
@@ -35,8 +38,9 @@ private:
   {
     Start = 0,
     Keying = 1,
-    DilateErode = 2,
-    End = 3
+    DilateErodeIntermediate = 2,
+    DilateErodeFinal = 3,
+    End = 4
   };
   std::vector<Level> output_level_;
   bool output_complete_ { false };
@@ -56,9 +60,18 @@ public:
              const uint16_t width,
              const uint16_t height );
   ~ChromaKey();
-  void set_dilate_erode_distance( const double distance ) { dilate_erode_operation_.set_distance( distance ); }
-  void set_key_color( const std::vector<double>& key_color ) { keying_operation_.set_key_color( key_color ); }
-  void set_screen_balance( const double screen_balance ) { keying_operation_.set_screen_balance( screen_balance ); }
+  void set_dilate_erode_distance( const int distance )
+  {
+    dilate_erode_operation_.set_distance( distance );
+  }
+  void set_key_color( const std::vector<double>& key_color )
+  {
+    keying_operation_.set_key_color( key_color );
+  }
+  void set_screen_balance( const double screen_balance )
+  {
+    keying_operation_.set_screen_balance( screen_balance );
+  }
   void create_mask( RGBRaster& raster );
   void update_color( RGBRaster& raster );
 };

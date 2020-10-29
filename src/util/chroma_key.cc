@@ -77,17 +77,13 @@ void ChromaKey::process_rows( const uint8_t id )
     synchronize_threads( id, Keying );
 
     // Dilation or erosion
-    // Ensure only one thread gets to call init
-    {
-      lock_guard<mutex> lock( lock_ );
-      if ( !input_ready_ ) {
-        dilate_erode_operation_.init_operation( raster().A() );
-        input_ready_ = true;
-      }
-    } // End of lock scope
-    dilate_erode_operation_.process_rows(
+    dilate_erode_operation_.process_rows_intermediate(
       raster().A(), row_start_idx, row_end_idx );
-    synchronize_threads( id, DilateErode );
+    synchronize_threads( id, DilateErodeIntermediate );
+
+    dilate_erode_operation_.process_rows_final(
+      raster().A(), row_start_idx, row_end_idx );
+    synchronize_threads( id, DilateErodeFinal );
 
     // Ensure only one thread marks the job as done and wakes up main thread
     {
