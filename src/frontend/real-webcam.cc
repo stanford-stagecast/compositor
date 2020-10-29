@@ -35,6 +35,7 @@
 
 #include "display/display.hh"
 #include "input/camera.hh"
+#include "input/jpeg.hh"
 #include "util/chroma_key.hh"
 #include "util/compositor.hh"
 #include "util/raster_handle.hh"
@@ -102,27 +103,30 @@ int main( int argc, char* argv[] )
   VideoDisplay display { r, fullscreen, true };
 
   const uint8_t thread_count = 2;
-  const double distance = 0;
+  const int distance = 0;
   const double screen_balance = 0.5;
   vector<double> key_color = { 0.00819513, 0.106535, 0.026461 };
-  ChromaKey chromakey { thread_count, width,          height,
-                        distance,     screen_balance, key_color };
+  ChromaKey chromakey { thread_count, width, height };
+  chromakey.set_key_color( key_color );
+  chromakey.set_screen_balance( screen_balance );
+  chromakey.set_dilate_erode_distance( distance );
 
   const string image_name = "../test_background.jpg";
-  Compositor compositor( image_name );
+  JPEGDecompresser jpegdec;
+  RGBRaster background = jpegdec.load_image( image_name );
 
   while ( true ) {
     auto raster = camera.get_next_rgb_frame();
     auto start = chrono::high_resolution_clock::now();
 
-    chromakey.create_mask( *raster );
+    chromakey.start_create_mask( *raster );
+    chromakey.wait_for_mask();
 
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
     cout << "Time taken: " << duration.count() << " ms" << endl;
 
-    // chromakey.update_color( *raster );
-    compositor.composite( *raster );
+    chromakey.update_color( *raster );
     if ( raster.has_value() ) {
       display.draw( *raster );
     }
