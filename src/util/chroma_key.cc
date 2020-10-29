@@ -23,6 +23,10 @@ ChromaKey::ChromaKey( const uint8_t thread_count,
   }
 }
 
+ChromaKey::ChromaKey( const ChromaKey& other )
+  : ChromaKey( other.thread_count_, other.width_, other.height_ )
+{}
+
 ChromaKey::~ChromaKey()
 {
   {
@@ -97,7 +101,7 @@ void ChromaKey::process_rows( const uint8_t id )
   }
 }
 
-void ChromaKey::create_mask( RGBRaster& raster )
+void ChromaKey::start_create_mask( RGBRaster& raster )
 {
   raster_ = &raster;
   {
@@ -105,6 +109,10 @@ void ChromaKey::create_mask( RGBRaster& raster )
     input_ready_ = true;
   }
   cv_threads_.notify_all();
+}
+
+void ChromaKey::wait_for_mask()
+{
   {
     unique_lock<mutex> lock( lock_ );
     cv_main_.wait( lock, [&] { return output_complete_; } );

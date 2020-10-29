@@ -52,13 +52,13 @@ private:
   // Only return when all the threads completed their previous work
   void synchronize_threads( const uint8_t id, const Level level );
 
-  ChromaKey( const ChromaKey& ) = delete;
   ChromaKey& operator=( const ChromaKey& ) = delete;
 
 public:
   ChromaKey( const uint8_t thread_count,
              const uint16_t width,
              const uint16_t height );
+  ChromaKey( const ChromaKey& other );
   ~ChromaKey();
   void set_dilate_erode_distance( const int distance )
   {
@@ -72,7 +72,8 @@ public:
   {
     keying_operation_.set_screen_balance( screen_balance );
   }
-  void create_mask( RGBRaster& raster );
+  void start_create_mask( RGBRaster& raster );
+  void wait_for_mask();
   void update_color( RGBRaster& raster );
 };
 
