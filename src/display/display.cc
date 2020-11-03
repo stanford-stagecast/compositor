@@ -221,6 +221,8 @@ void VideoDisplay::resize( const pair<unsigned int, unsigned int>& target_size )
 
 void VideoDisplay::draw( const BaseRaster& raster )
 {
+  current_context_window_.window_.make_context_current( true );
+
   if ( width_ != raster.width() or height_ != raster.height() ) {
     throw Invalid( "inconsistent raster dimensions." );
   }
