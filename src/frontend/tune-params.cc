@@ -39,6 +39,7 @@
 #include "util/chroma_key.hh"
 #include "util/compositor.hh"
 #include "util/raster_handle.hh"
+#include "util/tokenize.hh"
 
 using namespace std;
 
@@ -100,10 +101,9 @@ int main( int argc, char* argv[] )
   };
 
   RasterHandle r { RasterHandle { width, height } };
-  RasterHandle r2 { RasterHandle { width, height } };
 
   VideoDisplay original_display { r, fullscreen, true };
-  VideoDisplay output_display { r2, fullscreen, true };
+  VideoDisplay output_display { r, fullscreen, true };
 
   const uint8_t thread_count = 2;
   const int distance = 0;
@@ -118,26 +118,51 @@ int main( int argc, char* argv[] )
   JPEGDecompresser jpegdec;
   RGBRaster background = jpegdec.load_image( image_name );
 
-  while ( true ) {
-    auto raster = camera.get_next_rgb_frame();
+  thread display_thread( [&] {
+    while ( true ) {
+      auto raster = camera.get_next_rgb_frame();
 
-    if ( raster.has_value() ) {
-      original_display.draw( *raster );
+      if ( raster.has_value() ) {
+        original_display.draw( *raster );
+      }
+
+      chromakey.start_create_mask( *raster );
+      chromakey.wait_for_mask();
+
+      chromakey.update_color( *raster );
+      if ( raster.has_value() ) {
+        output_display.draw( *raster );
+      }
     }
+  } );
 
-    auto start = chrono::high_resolution_clock::now();
+  thread command_thread( [&] {
+    while ( true ) {
+      string command;
+      getline( cin, command );
+      auto tokens = split( command, " " );
 
-    chromakey.start_create_mask( *raster );
-    chromakey.wait_for_mask();
+      if ( tokens[0] == "balance" ) {
+        const double balance = stof( tokens[1] );
+        chromakey.set_screen_balance( balance );
+      } else if ( tokens[0] == "color" ) {
+        if ( tokens.size() != 4 ) {
+          cerr << "Not enough color components" << endl;
+          continue;
+        }
 
-    auto end = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
+        const int R = stol( tokens[1] );
+        const int G = stol( tokens[2] );
+        const int B = stol( tokens[3] );
 
-    chromakey.update_color( *raster );
-    if ( raster.has_value() ) {
-      //original_display.draw( *raster );
+        const vector<double> color { R / 255.0, G / 255.0, B / 255.0 };
+        chromakey.set_key_color( color );
+      }
     }
-  }
+  } );
+
+  command_thread.join();
+  display_thread.join();
 
   return EXIT_SUCCESS;
 }
