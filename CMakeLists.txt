@@ -44,3 +44,6 @@ target_link_libraries ( real-webcam ${COMPOSITOR_LIBS} )
 
 add_executable ( fake-webcam src/frontend/fake-webcam.cc )
 target_link_libraries ( fake-webcam ${COMPOSITOR_LIBS} )
+
+add_executable ( tune-params src/frontend/tune-params.cc )
+target_link_libraries ( tune-params ${COMPOSITOR_LIBS} )
