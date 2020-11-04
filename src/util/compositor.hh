@@ -3,6 +3,9 @@
 #ifndef COMPOSITOR_HH
 #define COMPOSITOR_HH
 
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 #include "input/jpeg.hh"
@@ -14,25 +17,42 @@ class Compositor
 private:
   uint16_t width_, height_;
   // The rasters are ordered by depth
-  // The first raster is displayed on top and the last is usually background
+  // The first raster is displayed on top and the last is background
   std::vector<RGBRaster*> rasters_;
   uint8_t num_rasters_;
   std::vector<ChromaKey> keying_modules_;
+  RGBRaster output_raster_ { width_, height_, width_, height_ };
+
+  // For threading
+  uint8_t thread_count_;
+  std::vector<std::thread> threads_;
+  std::mutex lock_ {};
+  std::condition_variable cv_threads_ {};
+  std::condition_variable cv_main_ {};
+  bool thread_terminate_ { false };
+  bool input_ready_ { false };
+  enum Level
+  {
+    Start = 0,
+    Compose = 1,
+    End = 2
+  };
+  std::vector<Level> output_level_;
+  bool output_complete_ { false };
+  // Only return when all the threads completed their previous work
+  void synchronize_threads( const uint8_t id, const Level level );
 
   RGBRaster& background() { return *rasters_[rasters_.size() - 1]; }
-  void process_pixel( RGBRaster& output_raster,
-                      const uint16_t row,
-                      const uint16_t col );
-  void process_rows( RGBRaster& output_raster,
-                     const uint16_t row_start_idx,
-                     const uint16_t row_end_idx );
+  void process_pixel( const uint16_t row, const uint16_t col );
+  void process_rows( const uint8_t id );
   void extract_masks();
 
 public:
   Compositor( const uint8_t num_rasters,
               const uint16_t width,
               const uint16_t height,
-              const uint8_t thread_count = 2 );
+              const uint8_t compositor_thread_count = 2,
+              const uint8_t chroma_thread_count = 2 );
   void add_raster( RGBRaster* raster, const uint8_t depth );
   void add_background( RGBRaster* raster );
   void remove_raster( const uint8_t depth );
@@ -47,7 +67,7 @@ public:
   void set_key_color_all( const std::vector<double>& key_color );
   void set_screen_balance_all( const double screen_balance );
 
-  RGBRaster composite();
+  RGBRaster& composite();
 };
 
 #endif /* COMPOSITOR_HH */

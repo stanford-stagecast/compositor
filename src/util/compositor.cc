@@ -1,6 +1,7 @@
 /* -*-mode:c++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 
 #include <iostream>
+#include <numeric>
 
 #include "compositor.hh"
 
@@ -9,13 +10,21 @@ using namespace std;
 Compositor::Compositor( const uint8_t num_rasters,
                         const uint16_t width,
                         const uint16_t height,
-                        const uint8_t thread_count )
+                        const uint8_t compositor_thread_count,
+                        const uint8_t chroma_thread_count )
   : width_( width )
   , height_( height )
   , rasters_( num_rasters + 1, nullptr )
   , num_rasters_( num_rasters )
-  , keying_modules_( num_rasters, { thread_count, width, height } )
-{}
+  , keying_modules_( num_rasters, { chroma_thread_count, width, height } )
+  , thread_count_( compositor_thread_count )
+  , threads_( thread_count_ )
+  , output_level_( thread_count_, Start )
+{
+  for ( uint8_t i = 0; i < thread_count_; i++ ) {
+    threads_[i] = std::thread( &Compositor::process_rows, this, i );
+  }
+}
 
 void Compositor::add_raster( RGBRaster* raster, const uint8_t depth )
 {
@@ -107,11 +116,12 @@ void Compositor::set_screen_balance_all( const double screen_balance )
   }
 }
 
-void Compositor::process_pixel( RGBRaster& output_raster,
-                                const uint16_t row,
-                                const uint16_t col )
+void Compositor::process_pixel( const uint16_t row, const uint16_t col )
 {
   double remaining_alpha = 1.0;
+  output_raster_.R().at( col, row ) = 0;
+  output_raster_.G().at( col, row ) = 0;
+  output_raster_.B().at( col, row ) = 0;
   for ( size_t i = 0; i < rasters_.size(); i++ ) {
     RGBRaster* raster = rasters_[i];
     if ( !raster ) {
@@ -123,9 +133,9 @@ void Compositor::process_pixel( RGBRaster& output_raster,
       raster_alpha = 1.0;
     }
     const double alpha = min( remaining_alpha, raster_alpha );
-    output_raster.R().at( col, row ) += alpha * raster->R().at( col, row );
-    output_raster.G().at( col, row ) += alpha * raster->G().at( col, row );
-    output_raster.B().at( col, row ) += alpha * raster->B().at( col, row );
+    output_raster_.R().at( col, row ) += alpha * raster->R().at( col, row );
+    output_raster_.G().at( col, row ) += alpha * raster->G().at( col, row );
+    output_raster_.B().at( col, row ) += alpha * raster->B().at( col, row );
     remaining_alpha -= alpha;
     if ( remaining_alpha == 0 ) {
       return;
@@ -133,14 +143,58 @@ void Compositor::process_pixel( RGBRaster& output_raster,
   }
 }
 
-void Compositor::process_rows( RGBRaster& output_raster,
-                               const uint16_t row_start_idx,
-                               const uint16_t row_end_idx )
+void Compositor::synchronize_threads( const uint8_t id, const Level level )
 {
-  for ( int row = row_start_idx; row < row_end_idx; row++ ) {
-    for ( int col = 0; col < output_raster.width(); col++ ) {
-      process_pixel( output_raster, row, col );
+  unique_lock<mutex> lock( lock_ );
+  output_level_[id] = level;
+  // If this is the last thread to finish, wake up all threads, otherwise wait
+  // until other threads finished
+  if ( accumulate( output_level_.begin(), output_level_.end(), 0 )
+       == thread_count_ * level ) {
+    // Manually unlock the lock to avoid waking up the waiting threads only to
+    // block again
+    input_ready_ = false;
+    lock.unlock();
+    cv_threads_.notify_all();
+  } else {
+    cv_threads_.wait( lock, [&] {
+      return accumulate( output_level_.begin(), output_level_.end(), 0 )
+               >= thread_count_ * level
+             || ( level == End && output_level_[id] == Start );
+    } );
+  }
+}
+
+void Compositor::process_rows( const uint8_t id )
+{
+  const uint16_t num_rows = height_ / thread_count_;
+  const uint16_t row_start_idx = id * num_rows;
+  const uint16_t row_end_idx = row_start_idx + num_rows;
+  while ( true ) {
+    {
+      unique_lock<mutex> lock( lock_ );
+      cv_threads_.wait( lock,
+                        [&] { return input_ready_ || thread_terminate_; } );
+      if ( thread_terminate_ ) {
+        return;
+      }
+    } // End of lock scope
+
+    for ( int row = row_start_idx; row < row_end_idx; row++ ) {
+      for ( int col = 0; col < output_raster_.width(); col++ ) {
+        process_pixel( row, col );
+      }
     }
+    synchronize_threads( id, Compose );
+    // Ensure only one thread marks the job as done and wakes up main thread
+    {
+      unique_lock<mutex> lock( lock_ );
+      if ( !output_complete_ ) {
+        output_complete_ = true;
+      }
+    } // End of lock scope
+    synchronize_threads( id, End );
+    cv_main_.notify_one();
   }
 }
 
@@ -162,10 +216,23 @@ void Compositor::extract_masks()
   }
 }
 
-RGBRaster Compositor::composite()
+RGBRaster& Compositor::composite()
 {
-  RGBRaster output_raster { width_, height_, width_, height_ };
   extract_masks();
-  process_rows( output_raster, 0, height_ );
-  return output_raster;
+  {
+    lock_guard<mutex> lock( lock_ );
+    input_ready_ = true;
+  }
+  cv_threads_.notify_all();
+  {
+    unique_lock<mutex> lock( lock_ );
+    cv_main_.wait( lock, [&] { return output_complete_; } );
+    output_complete_ = false;
+  }
+  // Reset all internal states
+  input_ready_ = false;
+  for ( Level& level : output_level_ ) {
+    level = Start;
+  }
+  return output_raster_;
 }
