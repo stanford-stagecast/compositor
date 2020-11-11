@@ -53,6 +53,7 @@ public:
               const uint16_t height,
               const uint8_t compositor_thread_count = 2,
               const uint8_t chroma_thread_count = 2 );
+  ~Compositor();
   void add_raster( RGBRaster* raster, const uint8_t depth );
   void add_background( RGBRaster* raster );
   void remove_raster( const uint8_t depth );

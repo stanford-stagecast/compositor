@@ -26,6 +26,18 @@ Compositor::Compositor( const uint8_t num_rasters,
   }
 }
 
+Compositor::~Compositor()
+{
+  {
+    lock_guard<mutex> lock( lock_ );
+    thread_terminate_ = true;
+  }
+  cv_threads_.notify_all();
+  for ( auto& t : threads_ ) {
+    t.join();
+  }
+}
+
 void Compositor::add_raster( RGBRaster* raster, const uint8_t depth )
 {
   if ( !raster ) {
@@ -224,12 +236,15 @@ RGBRaster& Compositor::composite()
     input_ready_ = true;
   }
   cv_threads_.notify_all();
-  {
-    unique_lock<mutex> lock( lock_ );
-    cv_main_.wait( lock, [&] { return output_complete_; } );
-    output_complete_ = false;
-  }
+
+  unique_lock<mutex> lock( lock_ );
+  cv_main_.wait( lock, [&] {
+    return output_complete_
+           && accumulate( output_level_.begin(), output_level_.end(), 0 )
+                == thread_count_ * End;
+  } );
   // Reset all internal states
+  output_complete_ = false;
   input_ready_ = false;
   for ( Level& level : output_level_ ) {
     level = Start;

@@ -113,12 +113,15 @@ void ChromaKey::start_create_mask( RGBRaster& raster )
 
 void ChromaKey::wait_for_mask()
 {
-  {
-    unique_lock<mutex> lock( lock_ );
-    cv_main_.wait( lock, [&] { return output_complete_; } );
-    output_complete_ = false;
-  }
+
+  unique_lock<mutex> lock( lock_ );
+  cv_main_.wait( lock, [&] {
+    return output_complete_
+           && accumulate( output_level_.begin(), output_level_.end(), 0 )
+                == thread_count_ * End;
+  } );
   // Reset all internal states
+  output_complete_ = false;
   input_ready_ = false;
   raster_ = nullptr;
   for ( Level& level : output_level_ ) {
