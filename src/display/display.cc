@@ -92,6 +92,29 @@ const string VideoDisplay::shader_source_ycbcr = R"( #version 130
       }
     )";
 
+const string VideoDisplay::shader_source_rgb = R"( #version 130
+      #extension GL_ARB_texture_rectangle : enable
+
+      precision mediump float;
+
+      uniform sampler2DRect yTex;
+      uniform sampler2DRect uTex;
+      uniform sampler2DRect vTex;
+
+      in vec2 uv_texcoord;
+      in vec2 raw_position;
+      out vec4 outColor;
+
+      void main()
+      {
+        float fR = texture(yTex, raw_position).x;
+        float fG = texture(uTex, uv_texcoord).x;
+        float fB = texture(vTex, uv_texcoord).x;
+
+        outColor = vec4(fR, fG, fB, 1.0);
+      }
+    )";
+
 VideoDisplay::CurrentContextWindow::CurrentContextWindow(
   const unsigned int width,
   const unsigned int height,
@@ -102,21 +125,29 @@ VideoDisplay::CurrentContextWindow::CurrentContextWindow(
   window_.make_context_current( true );
 }
 
-VideoDisplay::VideoDisplay( const BaseRaster& raster, const bool fullscreen )
+VideoDisplay::VideoDisplay( const BaseRaster& raster,
+                            const bool fullscreen,
+                            const bool fromRGB )
   : display_width_( raster.display_width() )
   , display_height_( raster.display_height() )
   , width_( raster.width() )
   , height_( raster.height() )
+  , fromRGB_( fromRGB )
+  , image_ratio_( 2 - fromRGB_ )
   , current_context_window_( display_width_,
                              display_height_,
                              "VP8 Player",
                              fullscreen )
   , Y_( width_, height_ )
-  , U_( width_ / 2, height_ / 2 )
-  , V_( width_ / 2, height_ / 2 )
+  , U_( width_ / image_ratio_, height_ / image_ratio_ )
+  , V_( width_ / image_ratio_, height_ / image_ratio_ )
 {
   texture_shader_program_.attach( scale_from_pixel_coordinates_ );
-  texture_shader_program_.attach( ycbcr_shader_ );
+  if ( fromRGB_ ) {
+    texture_shader_program_.attach( rgb_shader_ );
+  } else {
+    texture_shader_program_.attach( ycbcr_shader_ );
+  }
   texture_shader_program_.link();
   glCheck( "after linking texture shader program" );
 
@@ -174,12 +205,12 @@ void VideoDisplay::resize( const pair<unsigned int, unsigned int>& target_size )
 
   vector<VertexObject> corners
     = { { 0, 0, xoffset, 0 },
-        { 0, target_size_y, xoffset, target_size_y / 2 },
+        { 0, target_size_y, xoffset, target_size_y / image_ratio_ },
         { target_size_x,
           target_size_y,
-          target_size_x / 2 + xoffset,
-          target_size_y / 2 },
-        { target_size_x, 0, target_size_x / 2 + xoffset, 0 } };
+          target_size_x / image_ratio_ + xoffset,
+          target_size_y / image_ratio_ },
+        { target_size_x, 0, target_size_x / image_ratio_ + xoffset, 0 } };
 
   texture_shader_array_object_.bind();
   ArrayBuffer::bind( screen_corners_ );
@@ -190,6 +221,8 @@ void VideoDisplay::resize( const pair<unsigned int, unsigned int>& target_size )
 
 void VideoDisplay::draw( const BaseRaster& raster )
 {
+  current_context_window_.window_.make_context_current( true );
+
   if ( width_ != raster.width() or height_ != raster.height() ) {
     throw Invalid( "inconsistent raster dimensions." );
   }

@@ -37,11 +37,15 @@ using namespace std;
 BaseRaster::BaseRaster( const uint16_t display_width,
                         const uint16_t display_height,
                         const uint16_t width,
-                        const uint16_t height )
+                        const uint16_t height,
+                        const uint8_t width_ratio,   /* = 2*/
+                        const uint8_t height_ratio ) /* = 2*/
   : display_width_( display_width )
   , display_height_( display_height )
   , width_( width )
   , height_( height )
+  , width_ratio_( width_ratio )
+  , height_ratio_( height_ratio )
 {
   if ( display_width_ > width_ ) {
     throw Invalid( "display_width is greater than width." );
@@ -99,3 +103,17 @@ void BaseRaster::dump( FILE* file ) const
     }
   }
 }
+
+RGBRaster::RGBRaster( const uint16_t display_width,
+                      const uint16_t display_height,
+                      const uint16_t width,
+                      const uint16_t height,
+                      const uint8_t width_ratio,   /* = 1 */
+                      const uint8_t height_ratio ) /* = 1 */
+  : BaseRaster( display_width,
+                display_height,
+                width,
+                height,
+                width_ratio,
+                height_ratio )
+{}

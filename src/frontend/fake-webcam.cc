@@ -34,20 +34,18 @@
 #include <vector>
 
 #include "display/display.hh"
-#include "input/camera.hh"
 #include "input/jpeg.hh"
+#include "input/mjpeg_input.hh"
 #include "util/chroma_key.hh"
 #include "util/compositor.hh"
 #include "util/raster_handle.hh"
 
 using namespace std;
+using namespace chrono;
 
 void usage( const char* argv0 )
 {
-  cerr
-    << "Usage: " << argv0
-    << " [-d, --device CAMERA] [-p, --pixfmt PIXEL_FORMAT] [-f, --fullscreen]"
-    << endl;
+  cerr << "Usage: " << argv0 << " FILE" << endl;
 }
 
 int main( int argc, char* argv[] )
@@ -58,78 +56,56 @@ int main( int argc, char* argv[] )
   }
 
   /* camera settings */
-  string camera_device = "/dev/video0";
-  string pixel_format = "NV12";
-  bool fullscreen = false;
-
-  const option command_line_options[]
-    = { { "device", required_argument, nullptr, 'd' },
-        { "pixfmt", required_argument, nullptr, 'p' },
-        { "fullscreen", no_argument, nullptr, 'f' },
-        { 0, 0, 0, 0 } };
-
-  while ( true ) {
-    const int opt
-      = getopt_long( argc, argv, "d:p:f", command_line_options, nullptr );
-
-    if ( opt == -1 ) {
-      break;
-    }
-
-    switch ( opt ) {
-      case 'd':
-        camera_device = optarg;
-        break;
-      case 'p':
-        pixel_format = optarg;
-        break;
-      case 'f':
-        fullscreen = true;
-        break;
-
-      default:
-        usage( argv[0] );
-        return EXIT_FAILURE;
-    }
-  }
-
   const uint16_t width = 1280;
   const uint16_t height = 720;
-  Camera camera {
-    width, height, PIXEL_FORMAT_STRS.at( pixel_format ), camera_device
-  };
-
+  MJPEGInput frame_input1 { argv[1], width, height };
+  MJPEGInput frame_input2 { argv[2], width, height };
   RasterHandle r { RasterHandle { width, height } };
-  VideoDisplay display { r, fullscreen, true };
+  VideoDisplay display { r, false, true };
 
   const uint8_t thread_count = 2;
-  const int distance = 0;
-  const double screen_balance = 0.5;
-  vector<double> key_color = { 0.00819513, 0.106535, 0.026461 };
-  ChromaKey chromakey { thread_count, width, height };
-  chromakey.set_key_color( key_color );
-  chromakey.set_screen_balance( screen_balance );
-  chromakey.set_dilate_erode_distance( distance );
+  // const int distance = 0;
+  // const double screen_balance = 0.5;
+  vector<double> key_color1
+    = { 133.0 / 255, 187.0 / 255, 119.0 / 255 }; // puncher
+  vector<double> key_color2
+    = { 169.0 / 255, 220.0 / 255, 125.0 / 255 }; // punchee
 
   const string image_name = "../test_background.jpg";
   JPEGDecompresser jpegdec;
   RGBRaster background = jpegdec.load_image( image_name );
+  Compositor compositor( 3, width, height, thread_count );
+  compositor.set_key_color( key_color1, 0 );
+  compositor.set_key_color( key_color2, 1 );
+  compositor.add_background( &background );
+
+  for ( int i = 0; i < 70; i++ ) {
+    frame_input1.get_next_rgb_frame();
+  }
 
   while ( true ) {
-    auto raster = camera.get_next_rgb_frame();
+    auto raster1 = frame_input1.get_next_rgb_frame();
+    auto raster2 = frame_input2.get_next_rgb_frame();
+    if ( !raster1.has_value() && !raster2.has_value() ) {
+      break;
+    }
+    if ( raster1.has_value() ) {
+      compositor.add_raster( &raster1.value().get(), 0 );
+    }
+    if ( raster2.has_value() ) {
+      compositor.add_raster( &raster2.value().get(), 1 );
+    }
     auto start = chrono::high_resolution_clock::now();
 
-    chromakey.start_create_mask( *raster );
-    chromakey.wait_for_mask();
+    RGBRaster& output_raster = compositor.composite();
 
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
     cout << "Time taken: " << duration.count() << " ms" << endl;
 
-    chromakey.update_color( *raster );
-    if ( raster.has_value() ) {
-      display.draw( *raster );
-    }
+    display.draw( output_raster );
+
+    this_thread::sleep_for( 40ms );
   }
 
   return EXIT_SUCCESS;

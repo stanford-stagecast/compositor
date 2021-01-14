@@ -67,5 +67,6 @@ public:
 };
 
 using RasterHandle = BaseRasterHandle<BaseRaster>;
+using RGBRasterHandle = BaseRasterHandle<RGBRaster>;
 
 #endif /* RASTER_POOL_HH */

@@ -137,3 +137,5 @@ BaseRasterHandle<RasterType>::BaseRasterHandle(
 
 template class RasterDeleter<BaseRaster>;
 template class BaseRasterHandle<BaseRaster>;
+template class RasterDeleter<RGBRaster>;
+template class BaseRasterHandle<RGBRaster>;

@@ -40,9 +40,12 @@ class VideoDisplay
 private:
   static const std::string shader_source_scale_from_pixel_coordinates;
   static const std::string shader_source_ycbcr;
+  static const std::string shader_source_rgb;
 
   unsigned int display_width_, display_height_;
   unsigned int width_, height_;
+  bool fromRGB_;
+  unsigned int image_ratio_;
 
   struct CurrentContextWindow
   {
@@ -58,6 +61,7 @@ private:
   VertexShader scale_from_pixel_coordinates_
     = { shader_source_scale_from_pixel_coordinates };
   FragmentShader ycbcr_shader_ = { shader_source_ycbcr };
+  FragmentShader rgb_shader_ = { shader_source_rgb };
 
   Program texture_shader_program_ = {};
 
@@ -68,7 +72,9 @@ private:
   VertexBufferObject other_vertices_ = {};
 
 public:
-  VideoDisplay( const BaseRaster& raster, const bool fullscreen = false );
+  VideoDisplay( const BaseRaster& raster,
+                const bool fullscreen = false,
+                const bool fromRGB = false );
 
   VideoDisplay( const VideoDisplay& other ) = delete;
   VideoDisplay& operator=( const VideoDisplay& other ) = delete;

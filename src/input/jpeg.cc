@@ -65,40 +65,43 @@ void JPEGDecompresser::begin_decoding( const Chunk& chunk )
     throw runtime_error( "invalid JPEG" );
   }
 
-  decompresser_.raw_data_out = true;
-
   if ( decompresser_.jpeg_color_space != JCS_YCbCr ) {
     throw runtime_error( "not Y'CbCr" );
+  }
+
+  if ( toRGB_ ) {
+    decompresser_.out_color_space = JCS_RGB;
+  } else {
+    decompresser_.out_color_space = JCS_YCbCr;
   }
 
   if ( decompresser_.num_components != 3 ) {
     throw runtime_error( "not 3 components" );
   }
 
-  if ( decompresser_.comp_info[0].h_samp_factor != 2
-       or decompresser_.comp_info[0].v_samp_factor != 1
-       or decompresser_.comp_info[1].h_samp_factor != 1
-       or decompresser_.comp_info[1].v_samp_factor != 1
-       or decompresser_.comp_info[2].h_samp_factor != 1
-       or decompresser_.comp_info[2].v_samp_factor != 1 ) {
+  if ( not( decompresser_.comp_info[0].h_samp_factor == 2
+            and decompresser_.comp_info[0].v_samp_factor == 1
+            and decompresser_.comp_info[1].h_samp_factor == 1
+            and decompresser_.comp_info[1].v_samp_factor == 1
+            and decompresser_.comp_info[2].h_samp_factor == 1
+            and decompresser_.comp_info[2].v_samp_factor == 1 )
+       and not( decompresser_.comp_info[0].h_samp_factor == 2
+                and decompresser_.comp_info[0].v_samp_factor == 2
+                and decompresser_.comp_info[1].h_samp_factor == 1
+                and decompresser_.comp_info[1].v_samp_factor == 2
+                and decompresser_.comp_info[2].h_samp_factor == 1
+                and decompresser_.comp_info[2].v_samp_factor == 2 ) ) {
     throw runtime_error( "not 4:2:2" );
   }
 
-  if ( Y_.has_value() ) {
-    if ( Y_->height() != height() or U_->height() != height()
-         or V_->height() != height() or Y_->width() != width()
-         or U_->width() != width() / 2 or V_->width() != width() / 2 ) {
+  if ( YUV_.has_value() ) {
+    if ( YUV_->height() != height() or YUV_->width() != 3 * width() ) {
       throw runtime_error( "JPEG size changed" );
     }
   } else {
-    Y_.emplace( width(), height() );
-    U_.emplace( width() / 2, height() );
-    V_.emplace( width() / 2, height() );
-
+    YUV_.emplace( 3 * width(), height() );
     for ( unsigned int i = 0; i < height(); i++ ) {
-      Y_rows.emplace_back( &Y_->at( 0, i ) );
-      U_rows.emplace_back( &U_->at( 0, i ) );
-      V_rows.emplace_back( &V_->at( 0, i ) );
+      YUV_rows.emplace_back( &YUV_->at( 0, i ) );
     }
   }
 }
@@ -122,26 +125,53 @@ void JPEGDecompresser::decode( BaseRaster& r )
   jpeg_start_decompress( &decompresser_ );
 
   while ( decompresser_.output_scanline < decompresser_.output_height ) {
-    array<uint8_t**, 3> image { &Y_rows.at( decompresser_.output_scanline ),
-                                &U_rows.at( decompresser_.output_scanline ),
-                                &V_rows.at( decompresser_.output_scanline ) };
-
-    const auto decoded
-      = jpeg_read_raw_data( &decompresser_, image.data(), height() );
-
-    if ( decoded != DCTSIZE ) {
-      throw runtime_error( "jpeg_read_raw_data returned short read" );
-    }
+    jpeg_read_scanlines(
+      &decompresser_, &YUV_rows.at( decompresser_.output_scanline ), height() );
   }
 
   jpeg_finish_decompress( &decompresser_ );
 
-  memcpy( &r.Y().at( 0, 0 ), &Y_->at( 0, 0 ), width() * height() );
-
-  for ( size_t row = 0; row < height() / 2; row++ ) {
-    for ( size_t column = 0; column < width() / 2; column++ ) {
-      r.U().at( column, row ) = U_->at( column, row * 2 );
-      r.V().at( column, row ) = V_->at( column, row * 2 );
+  for ( size_t row = 0; row < height(); row++ ) {
+    for ( size_t column = 0; column < width(); column++ ) {
+      r.Y().at( column, row ) = YUV_->at( column * 3, row );
+      if ( row < height() / image_ratio_ && column < width() / image_ratio_ ) {
+        r.U().at( column, row )
+          = YUV_->at( column * image_ratio_ * 3 + 1, row * image_ratio_ );
+        r.V().at( column, row )
+          = YUV_->at( column * image_ratio_ * 3 + 2, row * image_ratio_ );
+      }
     }
   }
+}
+
+RGBRaster JPEGDecompresser::load_image( const string& image_name )
+{
+  FILE* file = fopen( image_name.c_str(), "rb" );
+  if ( !file ) {
+    throw runtime_error( "Error reading file: " + image_name );
+  }
+
+  jpeg_stdio_src( &decompresser_, file );
+
+  if ( JPEG_HEADER_OK != jpeg_read_header( &decompresser_, true ) ) {
+    throw runtime_error( "invalid JPEG" );
+  }
+
+  decompresser_.out_color_space = JCS_RGB;
+
+  if ( decompresser_.num_components != 3 ) {
+    throw runtime_error( "not 3 components" );
+  }
+
+  YUV_.emplace( 3 * width(), height() );
+  for ( unsigned int i = 0; i < height(); i++ ) {
+    YUV_rows.emplace_back( &YUV_->at( 0, i ) );
+  }
+
+  set_output_rgb();
+  const uint16_t image_width = static_cast<uint16_t>( width() );
+  const uint16_t image_height = static_cast<uint16_t>( height() );
+  RGBRaster image { image_width, image_height, image_width, image_height };
+  decode( image );
+  return image;
 }

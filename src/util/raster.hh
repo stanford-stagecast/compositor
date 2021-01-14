@@ -54,15 +54,19 @@ class BaseRaster
 protected:
   uint16_t display_width_, display_height_;
   uint16_t width_, height_;
+  uint8_t width_ratio_, height_ratio_;
 
-  TwoD<uint8_t> Y_ { width_, height_ }, U_ { width_ / 2, height_ / 2 },
-    V_ { width_ / 2, height_ / 2 };
+  TwoD<uint8_t> Y_ { width_, height_ },
+    U_ { width_ / width_ratio_, height_ / height_ratio_ },
+    V_ { width_ / width_ratio_, height_ / height_ratio_ };
 
 public:
   BaseRaster( const uint16_t display_width,
               const uint16_t display_height,
               const uint16_t width,
-              const uint16_t height );
+              const uint16_t height,
+              const uint8_t width_ratio = 2,
+              const uint8_t height_ratio = 2 );
 
   TwoD<uint8_t>& Y( void ) { return Y_; }
   TwoD<uint8_t>& U( void ) { return U_; }
@@ -87,6 +91,31 @@ public:
 
   std::vector<Chunk> display_rectangle_as_planar() const;
   void dump( FILE* file ) const; /* only used for debugging */
+};
+
+class RGBRaster : public BaseRaster
+{
+protected:
+  // Y_, U_, V_ stores RGB respectivly. A_ is the alpha channel.
+  TwoD<uint8_t> A_ { width_, height_ };
+
+public:
+  RGBRaster( const uint16_t display_width,
+             const uint16_t display_height,
+             const uint16_t width,
+             const uint16_t height,
+             const uint8_t width_ratio = 1,
+             const uint8_t height_ratio = 1 );
+
+  TwoD<uint8_t>& R( void ) { return Y_; }
+  TwoD<uint8_t>& G( void ) { return U_; }
+  TwoD<uint8_t>& B( void ) { return V_; }
+  TwoD<uint8_t>& A( void ) { return A_; }
+
+  const TwoD<uint8_t>& R( void ) const { return Y_; }
+  const TwoD<uint8_t>& G( void ) const { return U_; }
+  const TwoD<uint8_t>& B( void ) const { return V_; }
+  const TwoD<uint8_t>& A( void ) const { return A_; }
 };
 
 #endif /* RASTER_HH */
