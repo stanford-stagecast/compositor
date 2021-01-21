@@ -70,14 +70,16 @@ int main( int argc, char* argv[] )
     = { 133.0 / 255, 187.0 / 255, 119.0 / 255 }; // puncher
   vector<double> key_color2
     = { 169.0 / 255, 220.0 / 255, 125.0 / 255 }; // punchee
+  ChromaKey chromakey1 { thread_count, width, height };
+  ChromaKey chromakey2 { thread_count, width, height };
+  chromakey1.set_key_color( key_color1 );
+  chromakey2.set_key_color( key_color2 );
 
   const string image_name = "../test_background.jpg";
   JPEGDecompresser jpegdec;
   RGBRaster background = jpegdec.load_image( image_name );
-  Compositor compositor( 3, width, height, thread_count );
-  compositor.set_key_color( key_color1, 0 );
-  compositor.set_key_color( key_color2, 1 );
-  compositor.add_background( &background );
+
+  Compositor compositor( width, height, thread_count );
 
   for ( int i = 0; i < 70; i++ ) {
     frame_input1.get_next_rgb_frame();
@@ -89,16 +91,28 @@ int main( int argc, char* argv[] )
     if ( !raster1.has_value() && !raster2.has_value() ) {
       break;
     }
+    // start creating masks
     if ( raster1.has_value() ) {
-      compositor.add_raster( &raster1.value().get(), 0 );
+      chromakey1.start_create_mask( *raster1 );
     }
     if ( raster2.has_value() ) {
-      compositor.add_raster( &raster2.value().get(), 1 );
+      chromakey2.start_create_mask( *raster2 );
     }
+    // make sure masks finish
+    if ( raster1.has_value() ) {
+      chromakey1.wait_for_mask();
+    }
+    if ( raster2.has_value() ) {
+      chromakey2.wait_for_mask();
+    }
+    // add masks to compositor
+    compositor.raster_list().clear();
+    compositor.raster_list().push_back( &( *raster1 ).get() );
+    compositor.raster_list().push_back( &( *raster2 ).get() );
+    compositor.raster_list().push_back( &background );
+
     auto start = chrono::high_resolution_clock::now();
-
     RGBRaster& output_raster = compositor.composite();
-
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
     cout << "Time taken: " << duration.count() << " ms" << endl;
