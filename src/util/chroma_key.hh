@@ -39,9 +39,9 @@ private:
   ChromaKey& operator=( const ChromaKey& ) = delete;
 
 public:
-  ChromaKey( const uint8_t thread_count,
-             const uint16_t width,
-             const uint16_t height );
+  ChromaKey( const uint16_t width,
+             const uint16_t height,
+             const uint8_t thread_count );
   ChromaKey( const ChromaKey& other );
   void set_dilate_erode_distance( const int distance )
   {

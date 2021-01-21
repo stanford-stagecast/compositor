@@ -70,8 +70,8 @@ int main( int argc, char* argv[] )
     = { 133.0 / 255, 187.0 / 255, 119.0 / 255 }; // puncher
   vector<double> key_color2
     = { 169.0 / 255, 220.0 / 255, 125.0 / 255 }; // punchee
-  ChromaKey chromakey1 { thread_count, width, height };
-  ChromaKey chromakey2 { thread_count, width, height };
+  ChromaKey chromakey1 { width, height, thread_count };
+  ChromaKey chromakey2 { width, height, thread_count };
   chromakey1.set_key_color( key_color1 );
   chromakey2.set_key_color( key_color2 );
 

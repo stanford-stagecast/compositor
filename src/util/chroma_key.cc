@@ -9,9 +9,9 @@
 
 using namespace std;
 
-ChromaKey::ChromaKey( const uint8_t thread_count,
-                      const uint16_t width,
-                      const uint16_t height )
+ChromaKey::ChromaKey( const uint16_t width,
+                      const uint16_t height,
+                      const uint8_t thread_count )
   : width_( width )
   , height_( height )
   , thread_count_( thread_count )
@@ -23,7 +23,7 @@ ChromaKey::ChromaKey( const uint8_t thread_count,
 }
 
 ChromaKey::ChromaKey( const ChromaKey& other )
-  : ChromaKey( other.thread_count_, other.width_, other.height_ )
+  : ChromaKey( other.width_, other.height_, other.thread_count_ )
 {}
 
 void ChromaKey::keying_task( const uint16_t row_start_idx,
