@@ -9,124 +9,52 @@
 
 using namespace std;
 
-ChromaKey::ChromaKey( const uint8_t thread_count,
-                      const uint16_t width,
-                      const uint16_t height )
+ChromaKey::ChromaKey( const uint16_t width,
+                      const uint16_t height,
+                      const uint8_t thread_count )
   : width_( width )
   , height_( height )
   , thread_count_( thread_count )
-  , threads_( thread_count_ )
-  , output_level_( thread_count_, Start )
+  , pool_( thread_count, width, height, this )
 {
-  for ( uint8_t i = 0; i < thread_count_; i++ ) {
-    threads_[i] = std::thread( &ChromaKey::process_rows, this, i );
-  }
+  pool_.append_task( &ChromaKey::keying_task );
+  pool_.append_task( &ChromaKey::DE_intermediate_task );
+  pool_.append_task( &ChromaKey::DE_final_task );
 }
 
 ChromaKey::ChromaKey( const ChromaKey& other )
-  : ChromaKey( other.thread_count_, other.width_, other.height_ )
+  : ChromaKey( other.width_, other.height_, other.thread_count_ )
 {}
 
-ChromaKey::~ChromaKey()
+void ChromaKey::keying_task( const uint16_t row_start_idx,
+                             const uint16_t row_end_idx )
 {
-  {
-    lock_guard<mutex> lock( lock_ );
-    thread_terminate_ = true;
-  }
-  cv_threads_.notify_all();
-  for ( auto& t : threads_ ) {
-    t.join();
-  }
+  keying_operation_.process_rows( raster(), row_start_idx, row_end_idx );
 }
 
-void ChromaKey::synchronize_threads( const uint8_t id, const Level level )
+void ChromaKey::DE_intermediate_task( const uint16_t row_start_idx,
+                                      const uint16_t row_end_idx )
 {
-  unique_lock<mutex> lock( lock_ );
-  output_level_[id] = level;
-  // If this is the last thread to finish, wake up all threads, otherwise wait
-  // until other threads finished
-  if ( accumulate( output_level_.begin(), output_level_.end(), 0 )
-       == thread_count_ * level ) {
-    // Manually unlock the lock to avoid waking up the waiting threads only to
-    // block again
-    input_ready_ = false;
-    lock.unlock();
-    cv_threads_.notify_all();
-  } else {
-    cv_threads_.wait( lock, [&] {
-      return accumulate( output_level_.begin(), output_level_.end(), 0 )
-               >= thread_count_ * level
-             || ( level == End && output_level_[id] == Start );
-    } );
-  }
+  dilate_erode_operation_.process_rows_intermediate(
+    raster().A(), row_start_idx, row_end_idx );
 }
 
-void ChromaKey::process_rows( const uint8_t id )
+void ChromaKey::DE_final_task( const uint16_t row_start_idx,
+                               const uint16_t row_end_idx )
 {
-  const uint16_t num_rows = height_ / thread_count_;
-  const uint16_t row_start_idx = id * num_rows;
-  const uint16_t row_end_idx = row_start_idx + num_rows;
-  while ( true ) {
-    {
-      unique_lock<mutex> lock( lock_ );
-      cv_threads_.wait( lock,
-                        [&] { return input_ready_ || thread_terminate_; } );
-      if ( thread_terminate_ ) {
-        return;
-      }
-    } // End of lock scope
-
-    // Keying
-    keying_operation_.process_rows( raster(), row_start_idx, row_end_idx );
-    synchronize_threads( id, Keying );
-
-    // Dilation or erosion
-    dilate_erode_operation_.process_rows_intermediate(
-      raster().A(), row_start_idx, row_end_idx );
-    synchronize_threads( id, DilateErodeIntermediate );
-
-    dilate_erode_operation_.process_rows_final(
-      raster().A(), row_start_idx, row_end_idx );
-    synchronize_threads( id, DilateErodeFinal );
-
-    // Ensure only one thread marks the job as done and wakes up main thread
-    {
-      unique_lock<mutex> lock( lock_ );
-      if ( !output_complete_ ) {
-        output_complete_ = true;
-      }
-    } // End of lock scope
-    synchronize_threads( id, End );
-    cv_main_.notify_one();
-  }
+  dilate_erode_operation_.process_rows_final(
+    raster().A(), row_start_idx, row_end_idx );
 }
 
 void ChromaKey::start_create_mask( RGBRaster& raster )
 {
   raster_ = &raster;
-  {
-    lock_guard<mutex> lock( lock_ );
-    input_ready_ = true;
-  }
-  cv_threads_.notify_all();
+  pool_.input_complete();
 }
 
 void ChromaKey::wait_for_mask()
 {
-
-  unique_lock<mutex> lock( lock_ );
-  cv_main_.wait( lock, [&] {
-    return output_complete_
-           && accumulate( output_level_.begin(), output_level_.end(), 0 )
-                == thread_count_ * End;
-  } );
-  // Reset all internal states
-  output_complete_ = false;
-  input_ready_ = false;
-  raster_ = nullptr;
-  for ( Level& level : output_level_ ) {
-    level = Start;
-  }
+  pool_.wait_for_result();
 }
 
 void ChromaKey::update_color( RGBRaster& raster )

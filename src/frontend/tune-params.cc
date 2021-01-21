@@ -109,7 +109,7 @@ int main( int argc, char* argv[] )
   const int distance = 0;
   const double screen_balance = 0.5;
   vector<double> key_color = { 0.00819513, 0.106535, 0.026461 };
-  ChromaKey chromakey { thread_count, width, height };
+  ChromaKey chromakey { width, height, thread_count };
   chromakey.set_key_color( key_color );
   chromakey.set_screen_balance( screen_balance );
   chromakey.set_dilate_erode_distance( distance );
