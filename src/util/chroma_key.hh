@@ -10,6 +10,7 @@
 #include "util/dilate_erode.hh"
 #include "util/keying.hh"
 #include "util/raster.hh"
+#include "util/thread_pool.hh"
 
 class ChromaKey
 {
@@ -25,33 +26,16 @@ private:
   DilateErodeOperation dilate_erode_operation_ { width_,
                                                  height_,
                                                  default_distance_ };
-
-  // For threading
-  uint8_t thread_count_;
-  std::vector<std::thread> threads_;
-  std::mutex lock_ {};
-  std::condition_variable cv_threads_ {};
-  std::condition_variable cv_main_ {};
-  bool thread_terminate_ { false };
-  bool input_ready_ { false };
-  enum Level
-  {
-    Start = 0,
-    Keying = 1,
-    DilateErodeIntermediate = 2,
-    DilateErodeFinal = 3,
-    End = 4
-  };
-  std::vector<Level> output_level_;
-  bool output_complete_ { false };
-
+  int thread_count_;
+  ThreadPool<ChromaKey> pool_;
   RGBRaster* raster_ { nullptr };
 
   RGBRaster& raster() { return *raster_; }
-  void process_rows( const uint8_t id );
-  // Only return when all the threads completed their previous work
-  void synchronize_threads( const uint8_t id, const Level level );
-
+  void keying_task( const uint16_t row_start_idx, const uint16_t row_end_idx );
+  void DE_intermediate_task( const uint16_t row_start_idx,
+                             const uint16_t row_end_idx );
+  void DE_final_task( const uint16_t row_start_idx,
+                      const uint16_t row_end_idx );
   ChromaKey& operator=( const ChromaKey& ) = delete;
 
 public:
@@ -59,7 +43,6 @@ public:
              const uint16_t width,
              const uint16_t height );
   ChromaKey( const ChromaKey& other );
-  ~ChromaKey();
   void set_dilate_erode_distance( const int distance )
   {
     dilate_erode_operation_.set_distance( distance );
