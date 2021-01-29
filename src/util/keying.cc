@@ -12,6 +12,31 @@ KeyingOperation::KeyingOperation( const double screen_balance,
   , key_color_( key_color )
 {}
 
+const vector<double>& KeyingOperation::pixel_to_key_color(
+  const RGBRaster& raster,
+  const uint16_t col,
+  const uint16_t row ) const
+{
+  // cout << "pixel coord: " << col << " " << row << endl;
+  // determine which block on the screen the pixel falls in
+  const uint16_t block_width = raster.width() / horizontal_num_markers_;
+  const uint16_t block_height = raster.height() / vertical_num_markers_;
+  const int horizontal_idx = col / block_width;
+  const int vertical_idx = row / block_height;
+  // convert block index to multikey vector index
+  const size_t multikey_idx
+    = vertical_idx * horizontal_num_markers_ + horizontal_idx;
+  // cout << "multikey idx: " << multikey_idx << " " << multikey_color_.size()
+  // << endl;
+  if ( multikey_idx >= multikey_color_.size() ) {
+    // throw;
+    // cout << "Invalid keying. Correct behavior is markers were adjusted." <<
+    // endl;
+    return key_color_;
+  }
+  return multikey_color_[multikey_idx];
+}
+
 int KeyingOperation::max_axis_v3( const std::vector<double>& vec3 )
 {
   const double x = vec3[0];
@@ -35,10 +60,11 @@ double KeyingOperation::get_pixel_saturation( const vector<double>& pixel_color,
   return ( pixel_color[primary_channel] - val ) * abs( 1.0 - val );
 }
 
-double KeyingOperation::process_pixel( const vector<double>& pixel_color )
+double KeyingOperation::process_pixel( const vector<double>& pixel_color,
+                                       const std::vector<double>& key_color )
 {
   double alpha = 0;
-  const int primary_channel = max_axis_v3( key_color_ );
+  const int primary_channel = max_axis_v3( key_color );
   const double min_pixel_color
     = min( min( pixel_color[0], pixel_color[1] ), pixel_color[2] );
 
@@ -52,7 +78,7 @@ double KeyingOperation::process_pixel( const vector<double>& pixel_color )
   } else {
     double saturation = get_pixel_saturation( pixel_color, primary_channel );
     double screen_saturation
-      = get_pixel_saturation( key_color_, primary_channel );
+      = get_pixel_saturation( key_color, primary_channel );
 
     if ( saturation < 0 ) {
       // Means main channel of pixel is different from screen, assume this is
@@ -71,6 +97,26 @@ double KeyingOperation::process_pixel( const vector<double>& pixel_color )
   return alpha;
 }
 
+void KeyingOperation::set_multikey_color( const RGBRaster& background )
+{
+  const uint16_t block_width = background.width() / horizontal_num_markers_;
+  const uint16_t block_height = background.height() / vertical_num_markers_;
+  const uint16_t start_col = block_width / 2;
+  const uint16_t start_row = block_height / 2;
+  multikey_color_.clear();
+  for ( int i = 0; i < vertical_num_markers_; i++ ) {
+    for ( int j = 0; j < horizontal_num_markers_; j++ ) {
+      const uint16_t pixel_col = start_col + block_width * j;
+      const uint16_t pixel_row = start_row + block_height * i;
+      const double r = background.R().at( pixel_col, pixel_row );
+      const double g = background.G().at( pixel_col, pixel_row );
+      const double b = background.B().at( pixel_col, pixel_row );
+      const vector<double> key_color = { r / 255.0, g / 255.0, b / 255.0 };
+      multikey_color_.push_back( key_color );
+    }
+  }
+}
+
 void KeyingOperation::process_rows( RGBRaster& raster,
                                     const uint16_t row_start_idx,
                                     const uint16_t row_end_idx )
@@ -81,7 +127,14 @@ void KeyingOperation::process_rows( RGBRaster& raster,
       double g = raster.G().at( col, row );
       double b = raster.B().at( col, row );
       vector<double> pixel_color = { r / 255.0, g / 255.0, b / 255.0 };
-      double alpha = process_pixel( pixel_color );
+      double alpha = 0;
+      // determine if multikey color should be used or single key color
+      if ( multikey_color_.size() == 0 ) {
+        alpha = process_pixel( pixel_color, key_color_ );
+      } else {
+        alpha = process_pixel( pixel_color,
+                               pixel_to_key_color( raster, col, row ) );
+      }
       raster.A().at( col, row ) = alpha * 255;
     }
   }

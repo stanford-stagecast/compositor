@@ -113,6 +113,7 @@ int main( int argc, char* argv[] )
   chromakey.set_key_color( key_color );
   chromakey.set_screen_balance( screen_balance );
   chromakey.set_dilate_erode_distance( distance );
+  bool multikey_set = false;
 
   const string image_name = "../test_background.jpg";
   JPEGDecompresser jpegdec;
@@ -126,6 +127,11 @@ int main( int argc, char* argv[] )
 
       if ( raster.has_value() ) {
         original_display.draw( *raster );
+        if ( !multikey_set ) {
+          chromakey.set_multikey_color( *raster );
+          cout << "multikey set!" << endl;
+          multikey_set = true;
+        }
       }
 
       chromakey.start_create_mask( *raster );
@@ -149,6 +155,7 @@ int main( int argc, char* argv[] )
       if ( tokens[0] == "balance" ) {
         const double balance = stof( tokens[1] );
         chromakey.set_screen_balance( balance );
+        cout << "color balance set!" << endl;
       } else if ( tokens[0] == "color" ) {
         if ( tokens.size() != 4 ) {
           cerr << "Not enough color components" << endl;
@@ -159,8 +166,20 @@ int main( int argc, char* argv[] )
         const int B = stol( tokens[3] );
         const vector<double> color { R / 255.0, G / 255.0, B / 255.0 };
         chromakey.set_key_color( color );
+        cout << "key color set!" << endl;
       } else if ( tokens[0] == "distance" ) {
         chromakey.set_dilate_erode_distance( stoi( tokens[1] ) );
+        cout << "distance set!" << endl;
+      } else if ( tokens[0] == "multikey" ) {
+        multikey_set = false;
+      } else if ( tokens[0] == "marker" ) {
+        if ( tokens.size() != 3 ) {
+          cerr << "Not enough color components" << endl;
+          continue;
+        }
+        chromakey.set_marker_config( stol( tokens[1] ), stol( tokens[2] ) );
+        multikey_set = false;
+        cout << "marker config set!" << endl;
       }
     }
   } );

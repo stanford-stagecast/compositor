@@ -55,6 +55,14 @@ public:
   {
     keying_operation_.set_screen_balance( screen_balance );
   }
+  void set_marker_config( const int num_horizontal, const int num_vertical )
+  {
+    keying_operation_.set_marker_config( num_horizontal, num_vertical );
+  }
+  void set_multikey_color( const RGBRaster& background )
+  {
+    keying_operation_.set_multikey_color( background );
+  }
   void start_create_mask( RGBRaster& raster );
   void wait_for_mask();
   void update_color( RGBRaster& raster );
