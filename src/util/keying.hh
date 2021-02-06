@@ -21,7 +21,6 @@ private:
                                                  const uint16_t col,
                                                  const uint16_t row ) const;
 
-  int max_axis_v3( const std::vector<double>& vec3 );
   double get_pixel_saturation( const std::vector<double>& pixel_color,
                                int primary_channel );
   double process_pixel( const std::vector<double>& pixel_color,
@@ -44,7 +43,11 @@ public:
     horizontal_num_markers_ = num_horizontal;
     vertical_num_markers_ = num_vertical;
   }
+  int max_axis_v3( const std::vector<double>& vec3 ) const;
   void set_multikey_color( const RGBRaster& background );
+  const std::vector<double>& get_key_color( const RGBRaster& raster,
+                                            const uint16_t col,
+                                            const uint16_t row ) const;
   void process_rows( RGBRaster& raster,
                      const uint16_t row_start_idx,
                      const uint16_t row_end_idx );

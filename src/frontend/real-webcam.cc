@@ -113,9 +113,9 @@ int main( int argc, char* argv[] )
   chromakey.set_key_color( key_color );
   chromakey.set_screen_balance( screen_balance );
   chromakey.set_dilate_erode_distance( distance );
-  bool multikey_set = false;
+  bool multikey_set = true;
 
-  const string image_name = "../test_background.jpg";
+  const string image_name = "../street.jpg";
   JPEGDecompresser jpegdec;
   RGBRaster background = jpegdec.load_image( image_name );
 
@@ -180,6 +180,26 @@ int main( int argc, char* argv[] )
         chromakey.set_marker_config( stol( tokens[1] ), stol( tokens[2] ) );
         multikey_set = false;
         cout << "marker config set!" << endl;
+      } else if ( tokens[0] == "kernel_radius" ) {
+        chromakey.set_kernel_radius( stof( tokens[1] ) );
+        cout << "kernel radius set!" << endl;
+      } else if ( tokens[0] == "kernel_tolerance" ) {
+        chromakey.set_kernel_tolerance( stof( tokens[1] ) );
+        cout << "kernel tolerance set!" << endl;
+      } else if ( tokens[0] == "clip_black" ) {
+        chromakey.set_clip_black( stof( tokens[1] ) );
+        cout << "clip black set!" << endl;
+      } else if ( tokens[0] == "clip_white" ) {
+        chromakey.set_clip_white( stof( tokens[1] ) );
+        cout << "clip white set!" << endl;
+      } else if ( tokens[0] == "despill_factor" ) {
+        chromakey.set_despill_factor( stof( tokens[1] ) );
+        cout << "despill factor set!" << endl;
+      } else if ( tokens[0] == "despill_balance" ) {
+        chromakey.set_despill_balance( stof( tokens[1] ) );
+        cout << "despill color balance set!" << endl;
+      } else {
+        cout << "Invalid command!" << endl;
       }
     }
   } );

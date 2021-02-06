@@ -17,7 +17,6 @@ const vector<double>& KeyingOperation::pixel_to_key_color(
   const uint16_t col,
   const uint16_t row ) const
 {
-  // cout << "pixel coord: " << col << " " << row << endl;
   // determine which block on the screen the pixel falls in
   const uint16_t block_width = raster.width() / horizontal_num_markers_;
   const uint16_t block_height = raster.height() / vertical_num_markers_;
@@ -26,18 +25,15 @@ const vector<double>& KeyingOperation::pixel_to_key_color(
   // convert block index to multikey vector index
   const size_t multikey_idx
     = vertical_idx * horizontal_num_markers_ + horizontal_idx;
-  // cout << "multikey idx: " << multikey_idx << " " << multikey_color_.size()
-  // << endl;
+  // When multikey is reset, the current idx may become invalid
+  // So default key color is returned
   if ( multikey_idx >= multikey_color_.size() ) {
-    // throw;
-    // cout << "Invalid keying. Correct behavior is markers were adjusted." <<
-    // endl;
     return key_color_;
   }
   return multikey_color_[multikey_idx];
 }
 
-int KeyingOperation::max_axis_v3( const std::vector<double>& vec3 )
+int KeyingOperation::max_axis_v3( const std::vector<double>& vec3 ) const
 {
   const double x = vec3[0];
   const double y = vec3[1];
@@ -117,6 +113,17 @@ void KeyingOperation::set_multikey_color( const RGBRaster& background )
   }
 }
 
+const vector<double>& KeyingOperation::get_key_color( const RGBRaster& raster,
+                                                      const uint16_t col,
+                                                      const uint16_t row ) const
+{
+  // determine if multikey color should be used or single key color
+  if ( multikey_color_.size() == 0 ) {
+    return key_color_;
+  }
+  return pixel_to_key_color( raster, col, row );
+}
+
 void KeyingOperation::process_rows( RGBRaster& raster,
                                     const uint16_t row_start_idx,
                                     const uint16_t row_end_idx )
@@ -128,13 +135,8 @@ void KeyingOperation::process_rows( RGBRaster& raster,
       double b = raster.B().at( col, row );
       vector<double> pixel_color = { r / 255.0, g / 255.0, b / 255.0 };
       double alpha = 0;
-      // determine if multikey color should be used or single key color
-      if ( multikey_color_.size() == 0 ) {
-        alpha = process_pixel( pixel_color, key_color_ );
-      } else {
-        alpha = process_pixel( pixel_color,
-                               pixel_to_key_color( raster, col, row ) );
-      }
+      const vector<double>& key_color = get_key_color( raster, col, row );
+      alpha = process_pixel( pixel_color, key_color );
       raster.A().at( col, row ) = alpha * 255;
     }
   }

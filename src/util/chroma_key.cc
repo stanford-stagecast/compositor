@@ -18,8 +18,10 @@ ChromaKey::ChromaKey( const uint16_t width,
   , pool_( thread_count, width, height, this )
 {
   pool_.append_task( &ChromaKey::keying_task );
+  pool_.append_task( &ChromaKey::keying_clip_task );
   pool_.append_task( &ChromaKey::DE_intermediate_task );
   pool_.append_task( &ChromaKey::DE_final_task );
+  pool_.append_task( &ChromaKey::despill_task );
 }
 
 ChromaKey::ChromaKey( const ChromaKey& other )
@@ -30,6 +32,13 @@ void ChromaKey::keying_task( const uint16_t row_start_idx,
                              const uint16_t row_end_idx )
 {
   keying_operation_.process_rows( raster(), row_start_idx, row_end_idx );
+}
+
+void ChromaKey::keying_clip_task( const uint16_t row_start_idx,
+                                  const uint16_t row_end_idx )
+{
+  keying_clip_operation_.process_rows(
+    raster().A(), row_start_idx, row_end_idx );
 }
 
 void ChromaKey::DE_intermediate_task( const uint16_t row_start_idx,
@@ -44,6 +53,12 @@ void ChromaKey::DE_final_task( const uint16_t row_start_idx,
 {
   dilate_erode_operation_.process_rows_final(
     raster().A(), row_start_idx, row_end_idx );
+}
+
+void ChromaKey::despill_task( const uint16_t row_start_idx,
+                              const uint16_t row_end_idx )
+{
+  despill_operation_.process_rows( raster(), row_start_idx, row_end_idx );
 }
 
 void ChromaKey::start_create_mask( RGBRaster& raster )
