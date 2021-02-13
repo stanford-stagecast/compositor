@@ -39,6 +39,7 @@
 #include "util/chroma_key.hh"
 #include "util/compositor.hh"
 #include "util/raster_handle.hh"
+#include "util/tokenize.hh"
 
 using namespace std;
 
@@ -100,7 +101,9 @@ int main( int argc, char* argv[] )
   };
 
   RasterHandle r { RasterHandle { width, height } };
-  VideoDisplay display { r, fullscreen, true };
+
+  VideoDisplay original_display { r, fullscreen, true };
+  VideoDisplay output_display { r, fullscreen, true };
 
   const uint8_t thread_count = 2;
   const int distance = 0;
@@ -110,27 +113,99 @@ int main( int argc, char* argv[] )
   chromakey.set_key_color( key_color );
   chromakey.set_screen_balance( screen_balance );
   chromakey.set_dilate_erode_distance( distance );
+  bool multikey_set = true;
 
-  const string image_name = "../test_background.jpg";
+  const string image_name = "../street.jpg";
   JPEGDecompresser jpegdec;
   RGBRaster background = jpegdec.load_image( image_name );
 
-  while ( true ) {
-    auto raster = camera.get_next_rgb_frame();
-    auto start = chrono::high_resolution_clock::now();
+  Compositor compositor( width, height, thread_count );
 
-    chromakey.start_create_mask( *raster );
-    chromakey.wait_for_mask();
+  thread display_thread( [&] {
+    while ( true ) {
+      auto raster = camera.get_next_rgb_frame();
 
-    auto end = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>( end - start );
-    cout << "Time taken: " << duration.count() << " ms" << endl;
+      if ( raster.has_value() ) {
+        original_display.draw( *raster );
+        if ( !multikey_set ) {
+          chromakey.set_multikey_color( *raster );
+          cout << "multikey set!" << endl;
+          multikey_set = true;
+        }
+      }
 
-    chromakey.update_color( *raster );
-    if ( raster.has_value() ) {
-      display.draw( *raster );
+      chromakey.start_create_mask( *raster );
+      chromakey.wait_for_mask();
+
+      // add masks to compositor
+      compositor.raster_list().clear();
+      compositor.raster_list().push_back( &( *raster ).get() );
+      compositor.raster_list().push_back( &background );
+      RGBRaster& output_raster = compositor.composite();
+      output_display.draw( output_raster );
     }
-  }
+  } );
+
+  thread command_thread( [&] {
+    while ( true ) {
+      string command;
+      getline( cin, command );
+      auto tokens = split( command, " " );
+
+      if ( tokens[0] == "balance" ) {
+        const double balance = stof( tokens[1] );
+        chromakey.set_screen_balance( balance );
+        cout << "color balance set!" << endl;
+      } else if ( tokens[0] == "color" ) {
+        if ( tokens.size() != 4 ) {
+          cerr << "Not enough color components" << endl;
+          continue;
+        }
+        const int R = stol( tokens[1] );
+        const int G = stol( tokens[2] );
+        const int B = stol( tokens[3] );
+        const vector<double> color { R / 255.0, G / 255.0, B / 255.0 };
+        chromakey.set_key_color( color );
+        cout << "key color set!" << endl;
+      } else if ( tokens[0] == "distance" ) {
+        chromakey.set_dilate_erode_distance( stoi( tokens[1] ) );
+        cout << "distance set!" << endl;
+      } else if ( tokens[0] == "multikey" ) {
+        multikey_set = false;
+      } else if ( tokens[0] == "marker" ) {
+        if ( tokens.size() != 3 ) {
+          cerr << "Not enough color components" << endl;
+          continue;
+        }
+        chromakey.set_marker_config( stol( tokens[1] ), stol( tokens[2] ) );
+        multikey_set = false;
+        cout << "marker config set!" << endl;
+      } else if ( tokens[0] == "kernel_radius" ) {
+        chromakey.set_kernel_radius( stof( tokens[1] ) );
+        cout << "kernel radius set!" << endl;
+      } else if ( tokens[0] == "kernel_tolerance" ) {
+        chromakey.set_kernel_tolerance( stof( tokens[1] ) );
+        cout << "kernel tolerance set!" << endl;
+      } else if ( tokens[0] == "clip_black" ) {
+        chromakey.set_clip_black( stof( tokens[1] ) );
+        cout << "clip black set!" << endl;
+      } else if ( tokens[0] == "clip_white" ) {
+        chromakey.set_clip_white( stof( tokens[1] ) );
+        cout << "clip white set!" << endl;
+      } else if ( tokens[0] == "despill_factor" ) {
+        chromakey.set_despill_factor( stof( tokens[1] ) );
+        cout << "despill factor set!" << endl;
+      } else if ( tokens[0] == "despill_balance" ) {
+        chromakey.set_despill_balance( stof( tokens[1] ) );
+        cout << "despill color balance set!" << endl;
+      } else {
+        cout << "Invalid command!" << endl;
+      }
+    }
+  } );
+
+  command_thread.join();
+  display_thread.join();
 
   return EXIT_SUCCESS;
 }
