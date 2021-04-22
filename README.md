@@ -13,6 +13,7 @@ To build the source, you'll need the following packages:
 * `libglew-dev`
 * `libglfw3-dev`
 * `libjpeg-dev`
+* `libx264-dev`
 
 The rest should be straightforward:
 
